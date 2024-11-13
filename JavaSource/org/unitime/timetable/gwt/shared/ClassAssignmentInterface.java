@@ -1031,7 +1031,7 @@ public class ClassAssignmentInterface implements IsSerializable, Serializable {
 		public boolean hasCampus() {
 			if (iCampus == null || iCampus.isEmpty()) return false;
 			for (CodeLabel camp: iCampus)
-				if (!camp.isEmpty() && !camp.getCode().equals(iDefaultCampus)) return true;
+				if (!camp.isEmpty()) return true;
 			return false;
 		}
 		public String getCampus(String delim) { 
@@ -1323,6 +1323,7 @@ public class ClassAssignmentInterface implements IsSerializable, Serializable {
 		public boolean isImportant() { return iCritical != null && iCritical.intValue() == 2; }
 		public boolean isVital() { return iCritical != null && iCritical.intValue() == 3; }
 		public boolean isLC() { return iCritical != null && iCritical.intValue() == 4; }
+		public boolean isVisitingLC() { return iCritical != null && iCritical.intValue() == 5; }
 		public Integer getCritical() { return iCritical; }
 		public void setCritical(Integer critical) { iCritical = critical; }
 	}

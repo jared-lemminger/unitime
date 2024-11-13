@@ -24,9 +24,825 @@
 <release-history>
 
 <doc-title>UniTime 4.8 Release Notes</doc-title>
+
 <release>
 	<version>4.8.${build.number}</version>
 	<release-date>${build.date}</release-date>
+	<category>
+		<title>Course Timetabling</title>
+		<item>
+			<name>Class Assignment: Room Partitions</name>
+			<description>
+				<line>Consider room partitions when checking room availability (other non-class events).</line>
+			</description>
+		</item>
+		<item>
+			<name>Course Timetabling Solver: Optimization</name>
+			<description>
+				<line>In order for the solver to start optimization even when a complete solution cannot be found, added an ability to halt the initial search phase when a maximum number of non-improving iterations is reached.</line>
+				<line>This can be controlled by the Search.MaxIdleIterations parameter.
+					<line>It defaults to 1000.</line>
+					<line>Set to -1 to disable the ability to halt the initial search phase (previous behavior).</line>
+					<line>Set to 0 to disable the construction heuristics, going directly to optimization phases.</line>
+				</line>
+				<line>Improved the ability to assign an unassigned class during the optimization phase.
+					<line>To enable this, add ;org.cpsolver.coursett.neighbourhoods.Suggestion@0.1 to the following parameters:
+						<line>HillClimber.AdditionalNeighbours</line>
+						<line>GreatDeluge.AdditionalNeighbours</line>
+						<line>SimulatedAnnealing.AdditionalNeighbours</line>
+					</line>
+					<line>This is especially needed when the construction phase is disabled, or the solver struggles to find a complete solution when one exists.</line>
+				</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Examination Timetabling</title>
+		<item>
+			<name>Room Partitions</name>
+			<description>
+				<line>Added support for room partitions in the examination timetabling.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Events</title>
+		<item>
+			<name>Lookup Classes/Examination: Bugfix</name>
+			<description>
+				<line>Populate the event filter even when it is not present.</line>
+				<line>This fixes an issue caused by a recent change, having the events and rooms parameters incorrectly interpreted.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Administration</title>
+		<item>
+			<name>Data Exchange: Course Offering XML</name>
+			<description>
+				<line>Added an optional attribute class.roomRatio, defaults to 1.</line>
+				<line>Added an optional attribute class.splitAttendance for classes with two or more rooms, defaults to false.</line>
+			</description>
+		</item>
+	</category>
+</release>
+<release>
+	<version>4.8.159</version>
+	<release-date>Fri, 27 Sep 2024</release-date>
+	<category>
+		<title>Course Timetabling</title>
+		<item>
+			<name>Instructional Offering Configuration</name>
+			<description>
+				<line>Delete: Fixed a possible &quot;deleted object would be re-saved by cascade&quot; exception when deleting a configuration that participates in a distribution preference.</line>
+				<line>Delete: Fixed a possible &quot;deleted instance passed to merge&quot; exception when deleting a configuration that has teaching requests.</line>
+				<line>Delete: Skip validation for a configuration that is being deleted.</line>
+			</description>
+		</item>
+		<item>
+			<name>Solution (Database) Save</name>
+			<description>
+				<line>A few changes to make the save faster:
+					<line>Faster computation of number of no-conflict placements in variable info.</line>
+					<line>When General.SaveConstraintInfos is false, do not compute no-conflict placements in variable infos at all.</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>Edit Class/Scheduling Subpart</name>
+			<description>
+				<line>Added an ability to search the list of available date patterns.</line>
+				<line>Enable by setting unitime.classEdit.searchableDatePattern to true (defautls to false).</line>
+				<line>When enabled, the Date Pattern list box is replaced by a text field with suggestions.</line>
+			</description>
+		</item>
+		<item>
+			<name>Extended Student Conflicts Constraint</name>
+			<description>
+				<line>Fixed a concurrency issue.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Student Scheduling</title>
+		<item>
+			<name>Wait-Listing</name>
+			<description>
+				<line>Position: Consider current enrollment when computing wait-list position.</line>
+				<line>Processing Order: Do not prioritize students wait-listing for a course swap.</line>
+			</description>
+		</item>
+		<item>
+			<name>Student Scheduling Assistant</name>
+			<description>
+				<line>Suggestions: When the Suggestions dialog is opened, include ARIA status labels for drop and wait-list buttons when the buttons are present.</line>
+				<line>Suggestions: Made the Drop and Wait-List buttons easier to get to.</line>
+			</description>
+		</item>
+		<item>
+			<name>Unavailabilities</name>
+			<description>
+				<line>Added unavailability distance conflicts (distance conflicts between sections and unavailabilities).</line>
+				<line>This is particularly useful when unavailabilities from other overlapping academic sessions are enabled.</line>
+				<line>A different max travel time in minutes can be defined for unavailabilities using the new solver parameter Distances.MaxTravelDistanceInMinutes.</line>
+				<line>Added Student Unavailability Conflicts solver report (listing both time and distance conflicts).</line>
+			</description>
+		</item>
+		<item>
+			<name>Batch Scheduling: Visiting F2F Priority</name>
+			<description>
+				<line>Added a new course request priority Visiting F2F that can be used to lower priority of visiting students for getting in face-to-face courses.</line>
+				<line>Can be enabled by identifying visiting students with Load.VisitingStudentFilter (e.g., not campus:XX)</line>
+				<line>A course request is considered face-to-face, if there is at least one possible enrollment that has a face-to-face class.
+					<line>When Load.VisitingFaceToFaceCheckFirstChoiceOnly is set to true (defaults to false), only the first-choice course is checked for face-to-face classes.</line>
+					<line>Only course requests without a priority can have their priority lowered (set to Visiting F2F).</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>Advisor Course Recommendations</name>
+			<description>
+				<line>Show recommendations from the other academic session(s) if a student is advised in two or more parallel sessions.</line>
+			</description>
+		</item>
+		<item>
+			<name>Student Scheduling Assistant / Student Course Requests</name>
+			<description>
+				<line>Available Sessions: Prefer sessions with matching student campus (in the order they are displayed).
+					<line>If two or more academic sessions start on the same date, prefer the academic session whose initiative matches the student's campus.
+						<line>Property unitime.studentScheduling.preferredStudentCampus can be used to provide regular expression for preferred student campuses.</line>
+					</line>
+					<line>Enable by setting unitime.studentScheduling.preferSessionsWithMatchingCampus to true, defaults to false.</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>Student Scheduling Solver: Credit Limits</name>
+			<description>
+				<line>Added an ability to adjust the student's min/max credit limit by their enrollment in other parallel sessions.
+					<line>I.e., sessions with matching academic term and year, but different initiative.</line>
+				</line>
+				<line>Enable by setting the solver parameter Load.DecreaseCreditLimitsByOtherSessionEnrollments to true (defaults to false).</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Examination Timetabling</title>
+		<item>
+			<name>Distribution Constraints</name>
+			<description>
+				<line>The examination distribution constraints were rewritten to make them easier to extend and customize.</line>
+				<line>For soft constraints, penalizations are now counted on individual examination pairs.
+					<line>This better ascertains how well the constraint is satisfied, especially for constraints posted between many exams.</line>
+				</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Events</title>
+		<item>
+			<name>Personal Schedule: Additional Emails</name>
+			<description>
+				<line>Added an option to disable lookup for events where the person's email is listed in the Additional Emails field.
+					<line>Disable by setting unitime.events.personal.considerAdditionalEmails to false, defaults to true.</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>Event Filter</name>
+			<description>
+				<line>Added an ability to skip computation of most event counts on the filter to make it load and operate faster.
+					<line>To enable set unitime.events.eventFilter.skipCounts to true (defaults to false).</line>
+				</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Other</title>
+		<item>
+			<name>GWT-Based Pages: Cookies</name>
+			<description>
+				<line>Avoid using cookies when possible (e.g., to store filter settings). Use HTML5 local/session storage instead.</line>
+				<line>This is to avoid error 400 - Bad Request: Request header is too large when using long texts in the filters.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Administration</title>
+		<item>
+			<name>Add/Edit Timetable Manager</name>
+			<description>
+				<line>External Manager Lookup: Only reset the email address (to the one from the LDAP directory) when it is left blank.</line>
+			</description>
+		</item>
+		<item>
+			<name>Data Exchange API</name>
+			<description>
+				<line>Corrected XML import response.</line>
+			</description>
+		</item>
+	</category>
+</release>
+<release>
+	<version>4.8.147</version>
+	<release-date>Thu, 25 Jul 2024</release-date>
+	<category>
+		<title>Course Timetabling</title>
+		<item>
+			<name>Multiple Class Setup</name>
+			<description>
+				<line>Date Pattern: Corrected the name of the default date pattern when a date pattern is set on the scheduling subpart.</line>
+			</description>
+		</item>
+		<item>
+			<name>Add/Edit Room</name>
+			<description>
+				<line>Preference: Do not allow for Required preference (for a department) unless there is already a required department for the room.
+					<line>Required preference set directly on a room usually makes no or very little sense and usually only creates confusion when a room is accidentally marked as required (as no other rooms can be used for the department by the course timetabling solver).</line>
+				</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Student Scheduling</title>
+		<item>
+			<name>Batch Student Solver Reports, Online Student Scheduling Reports</name>
+			<description>
+				<line>Filter: In the filter's drop-down, added Advisor text field and My Students checkbox.
+					<line>This is to make it easier for non-admin users to use.</line>
+				</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Other</title>
+		<item>
+			<name>Main page</name>
+			<description>
+				<line>To prevent an XSS vulnerability, sanitize the message when provided as a parameter.</line>				
+			</description>
+		</item>
+	</category>
+</release>
+<release>
+	<version>4.8.145</version>
+	<release-date>Fri, 19 Jul 2024</release-date>
+	<category>
+		<title>Course Timetabling</title>
+		<item>
+			<name>Instructional Offerings / Classes</name>
+			<description>
+				<line>Added an experimental user settings that allows for the header row on the Instructional Offerings and Classes pages to freeze (has sticky position).</line>
+				<line>To enable, add stickyTables manager setting with yes and no options (using Default Manager Settings page, sticky table headers are enabled when set to yes).</line>
+			</description>
+		</item>
+		<item>
+			<name>Instructional Offering Configuration</name>
+			<description>
+				<line>When unlimited enrollment is selected, make sure that all classes have zero number of rooms.</line>
+			</description>
+		</item>
+		<item>
+			<name>Reservations, Instructional Offering Detail, Student Scheduling Dashboards</name>
+			<description>
+				<line>Reservations table: Always show the reservation flags such as Allow Time Conflict,
+					Can Assign Over Limit, Student Must Follow, and Do Not Reserve Space.</line>
+				<line>This is to ensure that it is always clear what the reservation/override does.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Event Management</title>
+		<item>
+			<name>Events: Filter by Day of Week</name>
+			<description>
+				<line>Fixed a Hibernate 6.x issue when filtering by day of the week on MySQL and PostreSQL.</line>
+			</description>
+		</item>
+		<item>
+			<name>Administration: Event Statuses</name>
+			<description>
+				<line>Corrected an issue causing a room sometimes being shown under a wrong department/room type.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Student Scheduling</title>
+		<item>
+			<name>Batch Student Solver Reports, Online Student Scheduling Reports</name>
+			<description>
+				<line>Added an ability to filter reports using a Filter with similar capabilities as on the dashboard pages.</line>
+				<line>Added Conflicting Course Requests report: variant of Not-Assigned Course Requests report, but only showing course requests with time conflict.</line>
+				<line>Added Not-Used Curriculum Reservations report.</line>
+				<line>Added Reservations report: showing all reservations and their current enrollments / limits.</line>
+				<line>Added XLS export.</line>
+			</description>
+		</item>
+		<item>
+			<name>Batch Student Solver Dashboard, Online Student Scheduling Dashboard</name>
+			<description>
+				<line>Reservation Tooltip:
+					<line>Do not show limit (null) for unlimited classes.</line>
+					<line>Show flags for curriculum override reservations.</line>
+					<line>Individual, Curriculum: Limit the number of restrictions to 5 lines.</line>
+				</line>
+				<line>Added XLS export.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Administration</title>
+		<item>
+			<name>Rooms: Custom URL</name>
+			<description>
+				<line>Added an ability to provide custom URLs for rooms (based on their name, building, room number, or external id).</line>
+				<line>For more details, see the unitime.rooms.url properties.</line>
+			</description>
+		</item>
+	</category>
+</release>
+
+<release>
+	<version>4.8.139</version>
+	<release-date>Tue, 18 Jun 2024</release-date>
+	<category>
+		<title>Course Timetabling</title>
+		<item>
+			<name>Multiple Class Setup</name>
+			<description>
+				<line>Added column with the capacity of the assigned room (Cap).</line>
+				<line>Added mouse-over for assigned rooms.</line>
+				<line>Fixed the ability to clear External Id (when modification of external ids is allowed).</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Student Scheduling</title>
+		<item>
+			<name>Student Email Notifications</name>
+			<description>
+				<line>Created a plain-text template alternative for student scheduling emails.</line>
+				<line>Plain-text student emails can be enabled by setting unitime.enrollment.email.plainText to true (defaults to false).</line>
+			</description>
+		</item>
+		<item>
+			<name>Advisor Course Recommendations</name>
+			<description>
+				<line>Ensure that the advisor's additional notes do not overlap with signature on the generated PDF.</line>
+			</description>
+		</item>
+		<item>
+			<name>Online Student Scheduling Dashboard: Filter</name>
+			<description>
+				<line>The the following checks now allow for partial match using %:
+					<line>area, classification, major, concentration, </line>
+					<line>campus, accommodation, degree, program, minor, </line>
+    				<line>primary-area, primary-classification, primary-major, primary-concentration, primary-degree, </line>
+    				<line>group, status</line>
+    			</line>
+    			<line>For example, a:A% matches all areas starting with A. Or, LC:% matches all students that are in a group of LC type.</line>
+			</description>
+		</item>
+		<item>
+			<name>Universal Reservation Override: Student Filter</name>
+			<description>
+    			<line>Added a missing check on student minors.</line>
+				<line>The the following checks now allow for partial match using %:
+					<line>area, classification, major, concentration, </line>
+					<line>campus, accommodation, degree, program, minor, </line>
+    				<line>primary-area, primary-classification, primary-major, primary-concentration, primary-degree, </line>
+    				<line>group, status</line>
+    			</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Administration</title>
+		<item>
+			<name>Roll Forward: Travel Times, Room Partitions</name>
+			<description>
+				<line>Corrected roll forward of room partitions and travel times on Oracle (empty external id check was incorrect).</line>
+			</description>
+		</item>
+	</category>
+</release>
+
+<release>
+	<version>4.8.134</version>
+	<release-date>Wed, 29 May 2024</release-date>
+	<category>
+		<title>Course Timetabling</title>
+		<item>
+			<name>Extended Student Conflicts</name>
+			<description>
+				<line>Added an experimental global constraint that does not allow any two classes that the same student can attend to have a conflict.</line>
+				<line>The constraint checks any two classes of different offerings that share at least one student and that the student is allowed to take (not restricted by reservations).
+					<line>Class pairs included in the Ignore Student Conflicts constraints are ignored.</line>
+				</line>
+				<line>Some classes may be excluded by using ExtendedStudentConflicts.IgnoreClasses parameter which may contain a regular expression matching class name(s).</line>
+				<line>Pairs of classes of the same offering are checked, too.
+					<line>In this case, the course structure must allow the two classes to be attended together (e.g., they are from the same configuration),</line>
+					<line>and at least one student in the offering is allowed to take both classes.</line>
+					<line>This feature is enabled by default and can be disabled by setting ExtendedStudentConflicts.CheckSameCourse to false.</line>
+				</line>	
+				<line>To enable this constraint, add org.cpsolver.coursett.constraint.ExtendedStudentConflicts to General.GlobalConstraints
+					(which contains a semicolon separated list of global constraint classes that should be automatically added to the problem)</line>
+			</description>
+		</item>
+		<item>
+			<name>Room Edit: Room Features &amp; Groups</name>
+			<description>
+				<line>Disabled pre-fetching of room relations (such as departments, features, and groups) when loading the data for the Room Edit page.</line>
+				<line>This fixes a potential Hibernate issue that is causing room groups and features to disappear (not get loaded) in some cases that are hard to explain or reproduce.</line>
+				<line>The pre-fetching can be enabled by setting unitime.rooms.prefetchRelations to true.</line>
+			</description>
+		</item>
+		<item>
+			<name>Multiple Class Setup</name>
+			<description>
+				<line>Multiple Class Setup page rewritten to GWT to make the page faster and more reliable.</line>
+				<line>To use the old (Struts2-based) page, set unitime.legacy.course.multiple_class_setup to true.</line>
+				<line>When managing department is changed, only remove preferences that no longer apply (e.g., keep global room feature/group preferences).
+					<line>Former behavior (clear all room-related preferences) set unitime.legacy.course.clear_preferences to true.</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>Instructional Offering Configuration</name>
+			<description>
+				<line>Instructional Offering Configuration page rewritten to GWT to make the page faster and more reliable.</line>
+				<line>To use the old (Struts2-based) page, set unitime.legacy.course.instr_offering_config to true.</line>
+				<line>When managing department is changed, only remove preferences that no longer apply (e.g., keep global room feature/group preferences).
+					<line>Former behavior (clear all room-related preferences) set unitime.legacy.course.clear_preferences to true.</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>Scheduling Subpart Detail: Classes</name>
+			<description>
+				<line>Show External Id column when there is at least one classes with an external id filled in
+					(instead of showing the column when there is a class with a timetable).</line>
+				<line>Show Student Schedule Note when there is at least one class with a note
+					(instead of always showing the column).</line>
+			</description>
+		</item>
+		<item>
+			<name>Instructional Offering Detail: Configuration</name>
+			<description>
+				<line>Show Timetable column when there is at least one class with a timetable
+					  (instead of always showing the Timetable columns).</line>
+				<line>Show External Id column when there is at least one classes with an external id filled in
+					(instead of always showing the column).</line>
+				<line>Show Student Schedule Note when there is at least one class with a note
+					(instead of never showing the column).</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Student Scheduling</title>
+		<item>
+			<name>Scheduling Assistant: Submit Schedule</name>
+			<description>
+				<line>Fixed a possible TransientObjectException when a new course request is added to an existing course demand.</line>
+				<line>The problem seems to be related to the recent Hibernate 6.2.22 update.</line>
+			</description>
+		</item>
+		<item>
+			<name>Student Scheduling: Reservations</name>
+			<description>
+				<line>Student Scheduling Solver: Improved handling of reservations with restrictions from two or more configurations by computing and using configuration-specific limit caps and reservation limits.
+					<line>This makes the computation of reserved and unreserved space for a config or a section much more accurate.</line>
+				</line>
+				<line>Online Student Scheduling: Corrected the computation of reservation limit for reservations with restrictions from two or more configurations.
+					<line>This fixes an issue causing some space not to be reserved when a reservation was set between a configuration and one or more sections of a different config.</line>
+				</line>
+				<line>Online Student Scheduling: The checking of available space (e.g., when a student clicks Submit Schedule) for reservations with restrictions from two or more configurations has been corrected.
+					<line>This is especially applicable to reservations marked as exclusive (to be checked only at the levels they are set).</line>
+				</line>
+				<line>Add/Edit Reservation: Corrected computation of the selected spaces when restrictions from two or more configurations are selected.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Examination Timetabling</title>
+		<item>
+			<name>Examination Timetable</name>
+			<description>
+				<line>When showing data from the database, load the examination grid page faster.</line>
+				<line>This is done by pre-fetching all exams and their relations (like the Examination Reports page already does).</line>
+			</description>
+		</item>
+		<item>
+			<name>Room Splits</name>
+			<description>
+				<line>No longer impose a limit on the number of rooms an exam can use.</line>
+				<line>This fixes the ArrayIndexOutOfBoundsException when an exam is being split into more than 32 rooms.</line>
+			</description>
+		</item>
+	</category>	
+	<category>
+		<title>Administration</title>
+		<item>
+			<name>Data Exchange: Last-Like Course Demand Import</name>
+			<description>
+				<line>Open transaction before subject areas are loaded.</line>
+				<line>This fixes a Null exception introduced with Hibernate 6.x changes.</line>
+			</description>
+		</item>
+		<item>
+			<name>Data Exchange: Curriculum Import</name>
+			<description>
+				<line>Added an incremental mode (when incremental="true" in the root element).</line>
+				<line>Only curricula of matching abbreviations are removed.
+					<line>If the XML contains curriculum A/M1, the existing A/M1 curriculum is deleted first.</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>Data Exchange: Reservations Import</name>
+			<description>
+				<line>Added an incremental mode (when incremental="true" in the root element).</line>
+				<line>Only reservations of matching courses and types are removed.
+					<line>If the XML contains a curriculum reservation for ALG 101, all previous curriculum reservations for this course are deleted first.</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>User Context: Test Sessions</name>
+			<description>
+				<line>Added checking for test session status for Advisor, Instructor, and Student roles.</line>
+				<line>The test session is only available when the role has the Allow Test Sessions permission.</line>
+			</description>
+		</item>
+		<item>
+			<name>Technology Upgrade</name>
+			<description>
+				<line>Hibernate upgraded to version 6.4 (from 6.2).
+					<line>Please note that in HQL, = null or != null no longer works (use is null or is not null instead).</line>
+				</line>
+				<line>Apache Struts upgraded to version 6.4 (from 2.5).</line>
+			</description>
+		</item>
+		<item>
+			<name>Authentication: OAuth2</name>
+			<description>
+				<line>Added an ability to use OAuth2 authentication.</line>
+				<line>See https://help.unitime.org/OAuth2 for more details.</line>
+			</description>
+		</item>
+		<item>
+			<name>Docker Installation</name>
+			<description>
+				<line>Added an ability to install UniTime as a Docker container.</line>
+				<line>See https://help.unitime.org/docker for more details.</line>
+			</description>
+		</item>
+	</category>
+</release>
+<release>
+	<version>4.8.115</version>
+	<release-date>Wed, 13 Mar 2024</release-date>
+		<category>
+		<title>Course Timetabling</title>
+		<item>
+			<name>Scheduling Subparts: Limit, Course Name</name>
+			<description>
+				<line>Do not pre-compute scheduling subpart limits and course names.</line>
+				<line>This fixes an issue of showing an incorrect limit after a class limit change or when a class has been added or removed from a subpart.</line>
+				<line>The drawback is that these fields are no longer available in the reports, to fix this replace
+					<line>ss.limit with (select sum(c.expectedCapacity) from Class_ c where c.schedulingSubpart = s)</line>
+					<line>ss.courseName with (select co.subjectAreaAbbv || ' ' || co.courseNbr from CourseOffering co where co.isControl = true and co.instructionalOffering = ss.instrOfferingConfig.instructionalOffering)</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>Multiple Class Setup</name>
+			<description>
+				<line>Prevent premature submission of the page by only enabling all the submit buttons after the page is fully loaded.</line>
+				<line>This fixes a problem when some classes are deleted because the page is submitted for a massive course configuration while it is still being loaded.</line>
+			</description>
+		</item>
+		<item>
+			<name>Instructional Offering: Limit, Demand</name>
+			<description>
+				<line>Do not compute demand and limit fields within the data model (formula).
+					<line>It does not save anve time and just complicates the query.</line>
+					<line>This is to avoid showing old data, e.g., when an instructional offering configuration is updated.</line>
+				</line>
+				<line>The drawback is that these fields are no longer available in the reports, to fix this replace
+					<line>io.limit with (select sum(ioc.limit) from InstrOfferingConfig ioc where ioc.instructionalOffering = io)</line>
+					<line>io.demand with (select sum(co.demand + (case when cox is null then 0 else cox.demand end)) from CourseOffering co left outer join co.demandOffering cox where co.instructionalOffering = io)</line>
+				</line>
+				<line>This way, the fields are only computed when needed.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Student Scheduling</title>
+		<item>
+			<name>Batch Student Solver Reports: Export CSV</name>
+			<description>
+				<line>Corrected permission checking for the published student scheduling solver.</line>
+			</description>
+		</item>
+	</category>
+</release>
+<release>
+	<version>4.8.110</version>
+	<release-date>Tue, 27 Feb 2024</release-date>
+	<category>
+		<title>Course Timetabling</title>
+		<item>
+			<name>Instructor Unavailability: Daylight Saving Dates</name>
+			<description>
+				<line>Corrected instructor unavailability on daylight saving days (i.e., days with 23 or 25 hours).</line>
+			</description>
+		</item><item>
+			<name>Travel Time: Default/Computed Distances</name>
+			<description>
+				<line>Show default/computed distances in blue.</line>
+			</description>
+		</item>
+		<item>
+			<name>Course Timetabling: Multiple Rooms Split Attendance</name>
+			<description>
+				<line>When a class needs two or more rooms, added an ability to set the class as requiring split attendance.</line>
+				<line>When split attendance is set for the class, the class is expected to be split among the assigned rooms (the total room capacity must meet the class limit times room ratio).</line>
+				<line>When split attendance is not set for the class (which is the default), each room must be big enough to fit the class.</line>
+				<line>Split Attendance can be set on the Instructional Offering Configuration page (all classes of a subpart) or the Multiple Class Setup page (individual classes).</line>
+			</description>
+		</item>
+		<item>
+			<name>Course Timetabling: Multiple Rooms With Different Preferences</name>
+			<description>
+				<line>The ability to provide different preferences for each room has been added for classes that need two or more rooms.</line>
+				<line>This includes cases when some rooms are prohibited in some positions, e.g., a class needs a classroom and some other room.</line>
+				<line>Room-related preferences can be only defined on the class or the scheduling subpart level, for rooms, room groups, room features, and buildings.</line>
+			</description>
+		</item>
+		<item>
+			<name>Course Timetabling: Solution Commit</name>
+			<description>
+				<line>Solution commit made a little faster by loading the event date mappings only once.</line>
+			</description>
+		</item>
+	</category>
+	<category>	
+		<title>Student Scheduling</title>
+		<item>
+			<name>Student Scheduling Assistant / Course Requests: Access Control</name>
+			<description>
+				<line>Added an ability to limit how many users can use the page (Scheduling Assistant and/or Course Requests) at the same time.</line>
+				<line>Automatically leave the page after a given time of inactivity (showing a warning first).</line>
+				<line>Parameters for Scheduling Assistant:
+					<line>unitime.accessControl.sectioning.maxActiveUsers .. Maximal number of users using the page at the same time (not set or zero for disabled).</line>
+					<line>unitime.accessControl.sectioning.activeLimitInMinutes .. Number of minutes of inactivity for the user to get the Inactive Warning (defaults to 15 minutes, set to zero to disable).</line>
+				</line>
+				<line>Parameters for Course Requests:
+					<line>unitime.accessControl.requests.maxActiveUsers .. Maximal number of users using the page at the same time (not set or zero for disabled).</line>
+					<line>unitime.accessControl.requests.activeLimitInMinutes .. Number of minutes of inactivity for the user to get the Inactive Warning (defaults to 15 minutes, set to zero to disable).</line>
+				</line>
+				<line>When the Inactive Warning shows, the user has a minute to dismiss the warning before the page is exited automatically.</line>
+			</description>
+		</item>
+		<item>
+			<name>Universal Reservation Override: Student Filter</name>
+			<description>
+				<line>Added a universal reservation override type that allows to reserve space for students using a student filter.</line>
+				<line>Student filter is a boolean expression that may contain the following attributes:
+					<line>area, classification, campus, major, minor, concentration, degree, program, group, accommodation, student, advisor, status</line>
+					<line>primary-area, primary-classification, primary-major, primary-concentration, primary-degree, primary-program, primary-campus</line>
+				</line>
+				<line>For example, the following filter will match all programs that ends with -OL or -HY:
+					<line>primary-program:%-OL or primary-program:%-HY</line>
+				</line>
+			</description>
+		</item>
+		<item>
+			<name>Student Availability: Check Other Academic Sessions</name>
+			<description>
+				<line>Added an ability to check student schedules from other overlapping academic sessions.The classes of other academic sessions show up as unavailablies (blue color, not clickable).</line>
+				<line>They are also used as unavailabilities: the solver would not assign a class in the current academic session to a time that conflicts with a class of some other academic session that the student has.</line>
+				<line>Unless the class is of scheduling subpart that allows for overlaps, in which case the overlapping time is minimized instead.</line>
+				<line>This feature is not enabled by default, to enable it set the following properties:
+					<line>Batch student scheduling: set the solver parameter Load.IncludeUnavailabilitiesFromOtherSessions to true.</line>
+					<line>Online student scheduling: there are two options, 
+						<line>the unavailable times are either loaded from the database (when General.CheckUnavailabilitiesFromOtherSessionsUsingDatabase is true),</line>
+						<line>or from the other online student scheduling solver servers (when General.CheckUnavailabilitiesFromOtherSessions is true).</line>
+					</line>
+				</line>
+			</description>
+		</item>
+	</category>	
+	<category>
+		<title>Event Management</title>
+		<item>
+			<name>Rooms: Event Email</name>
+			<description>
+				<line>Added event emails on rooms, non-university locations, and event statuses.</line>
+				<line>When sending an event confirmation email, automatically CC all rooms of changed meetings.</line>
+				<line>Event Statuses page can now edit a default event email for a department and a room type pairs.</line>
+				<line>Event Statusess and Add/Edit Room pages can now edit event emails of an individual room.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Administration</title>
+		<item>
+			<name>Data Exchange: Academic Session Export</name>
+			<description>
+				<line>Fixed the occasional "Unable to export: No row with the given identifier exists" error on records that do exists.</line>
+			</description>
+		</item>
+	</category>
+</release>
+<release>
+	<version>4.8.98</version>
+	<release-date>Fri, 5 Jan 2024</release-date>
+	<category>
+		<title>Course Timetabling</title>
+		<item>
+			<name>Instructional Offering Detail: Instructor Requirements</name>
+			<description>
+				<line>Ensure that only requirements (instructor surveys) from the correct academic session are listed.</line>
+				<line>Include instructor surveys for assigned instructors that did not fill in course requirements for the course.</line>
+			</description>
+		</item>
+		<item>
+			<name>Classes, Class Assignments: Manager Filter</name>
+			<description>
+				<line>Added an ability to select multiple managers.</line>
+			</description>
+		</item>
+		<item>
+			<name>Timetable: Room Filter</name>
+			<description>
+				<line>Added an option to include the Room Filter (from the Rooms page) in the Filter section.</line>
+				<line>To be enabled by setting unitime.timeGrid.roomFilter to true (defaults to false).</line>
+				<line>When room or class filters are used, do not show instructors, curricula, etc. that have no matching classes.</line>
+			</description>
+		</item>
+		<item>
+			<name>Instructor Survey: Copy Course Requirements</name>
+			<description>
+				<line>Corrected copy of courses from a different academic session (the query filling in the remaining courses that the instructor has currently assigned was wrong).</line>
+			</description>
+		</item>
+		<item>
+			<name>Timetable Grid: Curriculum</name>
+			<description>
+				<line>When showing a saved/committed solution, corrected matching of a curriculum reservation when the displayed curriculum has no major.</line>
+			</description>
+		</item>
+		<item>
+			<name>Class Weights: Number of Weeks Class Weights</name>
+			<description>
+				<line>Added &quot;Nbr Weeks Class Weights&quot; option for the Class Weights solver parameter, weighting classes by the number of weeks they are using.
+					<line>Classes using the default date pattern have a weight of 1.0, a class meeting only every other week would be weighted 0.5.</line>
+				</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Event Management</title>
+		<item>
+			<name>Events Timetable: Curriculum</name>
+			<description>
+				<line>Corrected matching of a curriculum reservation when the displayed curriculum has no major.</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Online Student Scheduling</title>
+		<item>
+			<name>Instructor Schedule Changes</name>
+			<description>
+				<line>Corrected change detection when assignment changes are disabled (and there is a Lec-Lec combination with the same external id).</line>
+			</description>
+		</item>
+	</category>
+	<category>
+		<title>Administration</title>
+		<item>
+			<name>Timetabling Managers: Update Other Academic Sessions</name>
+			<description>
+				<line>Added an ability to update departments and solver groups in the academic sessions with the same academic initiative.</line>
+				<line>Academic sessions in the finished status are not included.</line>
+				<line>By default, the current and all future sessions (with the same initiative) are selected when a new manager is being added.</line>
+				<line>For existing managers, the academic sessions with the same departments and solver groups are selected by default.</line>
+			</description>
+		</item>
+		<item>
+			<name>Test HQL, Reports: Improved Error Handling</name>
+			<description>
+				<line>When the provided HQL is incorrect, display a more meaningful error message.</line>
+			</description>
+		</item>
+	</category>
+</release>
+<release>
+	<version>4.8.92</version>
+	<release-date>Thu, 14 Dec 2023</release-date>
 	<category>
 		<title>Course Timetabling</title>
 		<item>
@@ -131,6 +947,13 @@
 				<line>Added ability to change the default solver configuration by changing the unitime.solverConfig.defaultXxx application property.</line>
 			</description>
 		</item>
+		<item>
+			<name>Authentication: Active Directory</name>
+			<description>
+				<line>Added a Spring Security configuration compatible with Active Directory (unitime.spring.context.security=securityContextLDAP-AD.xml).</line>
+				<line>Using LDAP server authentication, user search instead of user DN matching, and using user name as the user's external id.</line>
+			</description>
+		</item>
 	</category>
 	<category>
 		<title>Bug Fixes</title>
@@ -155,6 +978,13 @@
 			<name>Course Timetabling Solver: Export CSV</name>
 			<description>
 				<line>Corrected Export Solution when the class names include external ids/class suffixes (i.e., unitime.solver.showClassSuffixes is true).</line>
+			</description>
+		</item>
+		<item>
+			<name>Multiple Class Setup: Delete Classes</name>
+			<description>
+				<line>When deleting an assignment, remove all related constraint infos to avoid Hibernate cache issues when an orphaned constraint info is automatically deleted.</line>
+				<line>This fixes a No row with the given identifier exists: ConstraintInfo issues.</line>
 			</description>
 		</item>
 	</category>

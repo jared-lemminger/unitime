@@ -1758,6 +1758,8 @@ public abstract class BaseCourseOfferingImport extends EventRelatedImports {
 				boolean cancelled = getOptionalBooleanAttribute(classElement, "cancelled", false);
 				Integer itypeId = findItypeForString(type).getItype();
 				Integer nbrRooms = getOptionalIntegerAttribute(classElement, "nbrRooms");
+				Float roomRatio = getOptionalFloatAttribute(classElement, "roomRatio");
+				Boolean splitAttendance = getOptionalBooleanAttribute(classElement, "splitAttendance");
 				
 				Class_ clazz = null;
 				Class_ origClass = null;
@@ -1848,6 +1850,16 @@ public abstract class BaseCourseOfferingImport extends EventRelatedImports {
 						addNote("\t" + ioc.getCourseName() + " " + type + " " + suffix + " 'class' number of rooms changed");
 						changed = true;
 					}
+					if (roomRatio != null && !roomRatio.equals(clazz.getRoomRatio())) {
+						clazz.setRoomRatio(roomRatio);
+						addNote("\t" + ioc.getCourseName() + " " + type + " " + suffix + " 'class' room ratio changed");
+						changed = true;
+					}
+					if (clazz.getNbrRooms() > 1 && splitAttendance != null && !splitAttendance.equals(clazz.isRoomsSplitAttendance())) {
+						clazz.setRoomsSplitAttendance(splitAttendance);
+						addNote("\t" + ioc.getCourseName() + " " + type + " " + suffix + " 'class' room split attendance changed");
+						changed = true;
+					}
 					if (cancelled != clazz.isCancelled()) {
 						clazz.setCancelled(cancelled);
 						if (cancelled)
@@ -1870,11 +1882,16 @@ public abstract class BaseCourseOfferingImport extends EventRelatedImports {
 					
 					clazz.setExpectedCapacity(limit);
 					clazz.setMaxExpectedCapacity(limit);
-					clazz.setRoomRatio(1f);
+					if (roomRatio != null)
+						clazz.setRoomRatio(roomRatio);
+					else
+						clazz.setRoomRatio(1f);
 					if (nbrRooms != null)
 						clazz.setNbrRooms(nbrRooms);
 					else
 						clazz.setNbrRooms(Integer.valueOf(1));
+					if (clazz.getNbrRooms() > 1)
+						clazz.setRoomsSplitAttendance(splitAttendance);
 					clazz.setEnabledForStudentScheduling(enabledForStudentScheduling);
 					clazz.setSchedulePrintNote(scheduleNote);
 					clazz.setCancelled(cancelled);
@@ -2386,7 +2403,6 @@ public abstract class BaseCourseOfferingImport extends EventRelatedImports {
 					ss.setItype(itype);
 					ss.setSchedulingSubpartSuffixCache(suffix);
 					ss.setInstrOfferingConfig(ioc);
-					ss.setCourseName(ioc.getInstructionalOffering().getCourseName());
 					ioc.addToschedulingSubparts(ss);
 					if(parentSubpart != null){
 						ss.setParentSubpart(parentSubpart);
@@ -2893,7 +2909,7 @@ public abstract class BaseCourseOfferingImport extends EventRelatedImports {
 				Integer size = getOptionalIntegerAttribute(examElement, "size");
 				Integer length = getRequiredIntegerAttribute(examElement, "length", elementName);
 				String seating = getOptionalStringAttribute(examElement, "seatingType");
-				int seatingType = ("normal".equals(seating) ? Exam.sSeatingTypeNormal : Exam.sSeatingTypeNormal);
+				int seatingType = ("normal".equals(seating) ? Exam.sSeatingTypeNormal : Exam.sSeatingTypeExam);
 				String type = getRequiredStringAttribute(examElement, "type", elementName);
 				String note = getOptionalStringAttribute(examElement, "note");
 				Integer printOffset = getOptionalIntegerAttribute(examElement, "printOffset");

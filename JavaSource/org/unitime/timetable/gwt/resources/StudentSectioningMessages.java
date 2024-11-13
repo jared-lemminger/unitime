@@ -935,6 +935,9 @@ public interface StudentSectioningMessages extends Messages {
 
 	@DefaultMessage("Dummy")
 	String reservationDummy();
+	
+	@DefaultMessage("Filter")
+	String reservationUniversal();
 
 	@DefaultMessage("Other")
 	String reservationOther();
@@ -2078,8 +2081,14 @@ public interface StudentSectioningMessages extends Messages {
 	@DefaultMessage("Conflict")
 	String reportAssignmentConflict();
 	
+	@DefaultMessage("Student Filter")
+	String reportUniversalReservationStudentFilter();
+	
 	@DefaultMessage("Not-Assigned Course Requests")
 	String reportUnassignedCourseRequests();
+	
+	@DefaultMessage("Conflicting Course Requests")
+	String reportConflictingCourseRequests();
 	
 	@DefaultMessage("Not-Assigned Critical Course Requests")
 	String reportUnassignedCriticalCourseRequests();
@@ -2099,6 +2108,12 @@ public interface StudentSectioningMessages extends Messages {
 	@DefaultMessage("Not-Used Learning Community Reservations")
 	String reportUnusedLearningCommunityReservations();
 	
+	@DefaultMessage("Not-Used Curriculum Reservations")
+	String reportUnusedCurriculumReservations();
+	
+	@DefaultMessage("Not-Used Student Filter Reservations")
+	String reportUnusedStudentFilterReservations();
+	
 	@DefaultMessage("Course Requests")
 	String reportCourseRequestsWithPriorities();
 	
@@ -2107,6 +2122,9 @@ public interface StudentSectioningMessages extends Messages {
 	
 	@DefaultMessage("Tableau Report (Simplified)")
 	String reportTableauSimpleReport();
+	
+	@DefaultMessage("Student Unavailability Conflicts")
+	String reportStudentUnavailabilityConflicts();
 	
 	@DefaultMessage("Requested")
 	String reportRequestedPriority();
@@ -2200,6 +2218,9 @@ public interface StudentSectioningMessages extends Messages {
 	
 	@DefaultMessage("Teaching\nOverlap")
 	String reportTeachingOverlap();
+	
+	@DefaultMessage("Teaching\nAssignment")
+	String reportTeachingAssignment();
 
 	@DefaultMessage("1st Alt")
 	String report1stAlt();
@@ -2228,6 +2249,9 @@ public interface StudentSectioningMessages extends Messages {
 	@DefaultMessage("Sectioning Issues (for Re-Scheduling, All Courses)")
 	String reportSectioningIssuesAllCourses();
 	
+	@DefaultMessage("Reservations")
+	String reportReservations();
+	
 	@DefaultMessage("BTB\n{0}")
 	String reportBTB(String col);
 	
@@ -2237,7 +2261,19 @@ public interface StudentSectioningMessages extends Messages {
 	@DefaultMessage("Problem")
 	String reportProblem();
 	
-	@DefaultMessage("{0} (TA)")
+	@DefaultMessage("Unavailability\n{0}")
+	String reportUnavailability(String col);
+	
+	@DefaultMessage("Time conflict")
+	String reportTimeConflict();
+	
+	@DefaultMessage("Overlaps for {0} minutes")
+	String reportAllowedOverlapForMins(int mins);
+	
+	@DefaultMessage("Distance conflict ({0} minutes break, {1} minutes travel)")
+	String reportDistanceConflict(int breakTime, int travelTimeInMins);
+	
+	@DefaultMessage("{0}")
 	String teachingAssignment(String className);
 	
 	@DefaultMessage("Section is full")
@@ -2295,6 +2331,9 @@ public interface StudentSectioningMessages extends Messages {
 	
 	@DefaultMessage("Course request has a matching LC reservation.")
 	String descriptionRequestLC();
+	
+	@DefaultMessage("Face-to-face course request for a visiting student.")
+	String descriptionRequestVisitingF2F();
 	
 	@DefaultMessage("Enrolled")
 	String reqStatusEnrolled();
@@ -2823,6 +2862,9 @@ public interface StudentSectioningMessages extends Messages {
 	
 	@DefaultMessage("Use Default")
 	String opSetCriticalNotSet();
+	
+	@DefaultMessage("Visiting F2F")
+	String opSetVisitingF2F();
 	
 	@DefaultMessage("Requested Overrides for {0}")
 	String dialogChangeRequestNote(String course);
@@ -3650,4 +3692,22 @@ public interface StudentSectioningMessages extends Messages {
 	
 	@DefaultMessage("Share")
 	String colPercentShare();
+	
+	@DefaultMessage("{0} (was {1})")
+	String textDiff(String newValue, String oldValue);
+	
+	@DefaultMessage("N/A")
+	String textNotApplicable();
+	
+	@DefaultMessage("For an up to date schedule, please visit {0}.")
+	String textEmailLinkToUniTime(String baseUrl);
+	
+	@DefaultMessage("Enrolled in {0} instead.")
+	String enrolledInAlt(String course);
+	
+	@DefaultMessage("Advisor:")
+	String propAdvisor();
+	
+	@DefaultMessage("{0} Recommendations")
+	String otherSessionRecommendations(String campus);
 }

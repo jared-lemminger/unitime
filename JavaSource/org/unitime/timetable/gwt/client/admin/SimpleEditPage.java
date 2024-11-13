@@ -456,6 +456,7 @@ public class SimpleEditPage extends Composite {
 			header.addButton("delete", MESSAGES.buttonDelete(), 75, new ClickHandler() {
 				@Override
 				public void onClick(ClickEvent event) {
+					if (iData.hasConfirmDelete() && !Window.confirm(iData.getConfirmDelete())) return;
 					header.setMessage(MESSAGES.waitDeletingRecord());
 					LoadingWidget.showLoading(MESSAGES.waitDeletingRecord());
 					RPC.execute(SimpleEditInterface.DeleteRecordRpcRequest.deleteRecord(iType, record), new AsyncCallback<Record>() {
@@ -710,7 +711,8 @@ public class SimpleEditPage extends Composite {
 										r.setField(0, open.indexOf("|" + r.getUniqueId() + "|") >= 0 ? "-" : "+");
 								}
 							}
-							Collections.sort(iData.getRecords(), new Comparator<Record>() {
+							List<Record> sorted = new ArrayList<SimpleEditInterface.Record>(iData.getRecords());
+							Collections.sort(sorted, new Comparator<Record>() {
 								public int compare(Record r1, Record r2) {
 									if (iData.getFields()[0].getType() == FieldType.parent) {
 										Record p1 = ("+".equals(r1.getField(0)) || "-".equals(r1.getField(0)) ? null : iData.getRecord(Long.valueOf(r1.getField(0))));
@@ -733,6 +735,7 @@ public class SimpleEditPage extends Composite {
 									return cmp.compare(r1, r2);
 								}
 							});
+							iData.setRecords(sorted);
 							refreshTable("|" + result.get("SimpleEdit.Hidden[" + iType.toString() + "]") + "|");
 							LoadingWidget.hideLoading();
 							if (callback != null) callback.onSuccess(true);
@@ -1171,6 +1174,8 @@ public class SimpleEditPage extends Composite {
 				@Override
 				public void onClick(ClickEvent event) {
 					int row = iTable.getCellForEvent(event).getRowIndex();
+					if (iData.hasConfirmDelete() && iTable.getData(row).getUniqueId() != null && !Window.confirm(iData.getConfirmDelete()))
+						return;	
 					iData.getRecords().remove(iTable.getData(row));
 					iTable.removeRow(row);
 					fixOrderArrows(row);

@@ -43,6 +43,7 @@ import org.hibernate.query.Query;
 import org.unitime.commons.Debug;
 import org.unitime.timetable.defaults.ApplicationProperty;
 import org.unitime.timetable.events.EventLookupBackend;
+import org.unitime.timetable.events.RoomFilterBackend.LocationMatcher;
 import org.unitime.timetable.gwt.server.DayCode;
 import org.unitime.timetable.gwt.server.Query.TermMatcher;
 import org.unitime.timetable.gwt.shared.TimetableGridInterface.TimetableGridBackground;
@@ -154,6 +155,7 @@ public class TimetableGridSolutionHelper extends TimetableGridHelper {
             int startSlot = (c.get(Calendar.HOUR_OF_DAY)*60 + c.get(Calendar.MINUTE) - Constants.FIRST_SLOT_TIME_MIN) / Constants.SLOT_LENGTH_MIN;
             c.setTime(time.getEndTime());
             int endSlot = (c.get(Calendar.HOUR_OF_DAY)*60 + c.get(Calendar.MINUTE) - Constants.FIRST_SLOT_TIME_MIN) / Constants.SLOT_LENGTH_MIN;
+            if (endSlot == 0 && c.get(Calendar.DAY_OF_MONTH) != d) endSlot = 288; // next day midnight
             int length = endSlot - startSlot;
             if (length<=0) continue;
             TimeLocation timeLocation = new TimeLocation(dayCode, startSlot, length, 0, 0, null, df.format(time.getStartTime()), weekCode, 0);
@@ -168,7 +170,7 @@ public class TimetableGridSolutionHelper extends TimetableGridHelper {
     				cell.setId(time.getEventId());
     				cell.setDay(slot / Constants.SLOTS_PER_DAY);
     				cell.setSlot(slot % Constants.SLOTS_PER_DAY);
-    				cell.addRoom(room);
+    				cell.addRoom(room == null ? "" : room);
     				cell.addName(time.getEventName());
     				cell.setProperty(Property.EventType, time.getEventType());
     				cell.setBackground(sBgColorNotAvailable);
@@ -339,7 +341,6 @@ public class TimetableGridSolutionHelper extends TimetableGridHelper {
 				cell.setProperty(Property.InitialAssignment, assignmentInfo.getIsInitial() ? "-" : assignmentInfo.getInitialAssignment());
 				cell.setProperty(Property.PerturbationPenalty, sDF.format(assignmentInfo.getPerturbationPenalty()));
 			}
-			cell.setProperty(Property.NonConflictingPlacements, assignmentInfo.getNrPlacementsNoConf());
 			cell.setProperty(Property.DepartmentBalance, sDF.format(assignmentInfo.getDeptBalancPenalty()));
 		} else {
 			cell.setProperty(Property.Owner, assignment.getSolution().getOwner().getName());
@@ -816,7 +817,7 @@ public class TimetableGridSolutionHelper extends TimetableGridHelper {
 				"select distinct cc.course.instructionalOffering.uniqueId, (case when g.uniqueId is null then x.uniqueId else g.uniqueId end), z.uniqueId " +
 				"from CurriculumReservation r inner join r.areas ra left outer join r.configurations g left outer join r.classes z left outer join z.schedulingSubpart.instrOfferingConfig x " +
 				"left outer join r.majors rm left outer join r.classifications rc, " +
-				"CurriculumCourse cc inner join cc.classification.curriculum.majors cm " +
+				"CurriculumCourse cc left outer join cc.classification.curriculum.majors cm " +
 				"where cc.classification.uniqueId = :resourceId " +
 				"and cc.course.instructionalOffering = r.instructionalOffering and ra = cc.classification.curriculum.academicArea "+
 				"and (rm is null or rm = cm) and (rc is null or rc = cc.classification.academicClassification)", Object[].class)
@@ -945,6 +946,11 @@ public class TimetableGridSolutionHelper extends TimetableGridHelper {
 	};
 	
 	private static boolean match(final TimetableGridContext context, final Assignment a, final TimetableGridModel m) {
+		if (m.getResourceType() != ResourceType.ROOM.ordinal() && context.getRoomFilter() != null) {
+			for (Location loc: a.getRooms())
+				if (context.getRoomFilter().match(new LocationMatcher(loc, context.getRoomFeatureTypes()))) return true;
+			return false;
+		}
     	return context.getClassFilter() == null || context.getClassFilter().match(new TermMatcher() {
 			@Override
 			public boolean match(String attr, String term) {
@@ -1090,11 +1096,11 @@ public class TimetableGridSolutionHelper extends TimetableGridHelper {
 	}
 
 	public static String hardConflicts2pref(AssignmentPreferenceInfo assignmentInfo) {
-		if (assignmentInfo==null) return PreferenceLevel.sNeutral;
+		if (assignmentInfo==null || assignmentInfo.getNrPlacementsNoConf() < 0) return PreferenceLevel.sNeutral;
 		String pref = PreferenceLevel.sNeutral;
 		if (assignmentInfo.getNrRoomLocations()==1 && assignmentInfo.getNrTimeLocations()==1) pref = PreferenceLevel.sRequired;
 		else if (assignmentInfo.getNrSameTimePlacementsNoConf()>0) pref=PreferenceLevel.sStronglyPreferred;
-		else if (assignmentInfo.getNrTimeLocations()>1 && assignmentInfo.getNrSameRoomPlacementsNoConf()>0) pref=PreferenceLevel.sProhibited;
+		else if (assignmentInfo.getNrTimeLocations()>1 && assignmentInfo.getNrSameRoomPlacementsNoConf()>0) pref=PreferenceLevel.sPreferred;
 		else if (assignmentInfo.getNrTimeLocations()>1) pref=PreferenceLevel.sNeutral;
 		else if (assignmentInfo.getNrSameRoomPlacementsNoConf()>0) pref=PreferenceLevel.sDiscouraged;
 		else if (assignmentInfo.getNrRoomLocations()>1) pref=PreferenceLevel.sStronglyDiscouraged;

@@ -33,10 +33,13 @@ public interface GwtMessages extends Messages {
 	@DefaultMessage("Version {0} built on {1}")
 	String pageVersion(String version, String buildDate);
 	
-	@DefaultMessage("&copy; 2008 - 2023 The Apereo Foundation,<br>distributed under the Apache License, Version 2.")
+	@DefaultMessage("UniTime {0}")
+	String unitimeVersion(String version);
+	
+	@DefaultMessage("&copy; 2008 - 2024 The Apereo Foundation,<br>distributed under the Apache License, Version 2.")
 	String pageCopyright();
 	
-	@DefaultMessage("UniTime {0}, \u00A9 2008 - 2023 The Apereo Foundation, distributed under the Apache License.")
+	@DefaultMessage("UniTime {0}, \u00A9 2008 - 2024 The Apereo Foundation, distributed under the Apache License.")
 	String pdfCopyright(String version);
 	
 	@DefaultMessage("Oooops, the loading is taking too much time... Something probably went wrong. You may need to reload this page.")
@@ -833,6 +836,9 @@ public interface GwtMessages extends Messages {
 	
 	@DefaultMessage("Event<br>Message")
 	String colEventMessage();
+	
+	@DefaultMessage("Event<br>Email")
+	String colEventEmail();
 	
 	@DefaultMessage("Break<br>Time")
 	String colBreakTime();
@@ -3917,6 +3923,14 @@ public interface GwtMessages extends Messages {
 	@DoNotTranslate
 	String pageInstructorSurvey();
 	
+	@DefaultMessage("Multiple Class Setup")
+	@DoNotTranslate
+	String pageMultipleClassSetup();
+	
+	@DefaultMessage("Instructional Offering Configuration")
+	@DoNotTranslate
+	String pageInstrOfferingConfig();
+	
 	@DefaultMessage("N/A")
 	String itemNotApplicable();
 	
@@ -4573,6 +4587,9 @@ public interface GwtMessages extends Messages {
 	@DefaultMessage("Event Message:")
 	String propEventNote();
 	
+	@DefaultMessage("Event Email:")
+	String propEventEmail();
+	
 	@DefaultMessage("Break Time:")
 	String propBreakTime();
 	
@@ -4821,6 +4838,9 @@ public interface GwtMessages extends Messages {
 	
 	@DefaultMessage("Event Status")
 	String fieldEventStatus();
+	
+	@DefaultMessage("Event Email")
+	String fieldEventEmail();
 	
 	@DefaultMessage("Room Note")
 	String fieldRoomNote();
@@ -5313,7 +5333,7 @@ public interface GwtMessages extends Messages {
 	
 	@DefaultMessage("Do you realy want to delete this room?")
 	String confirmDeleteRoom();
-	
+		
 	@DefaultMessage("Do you really want to create the room in {0} as well?")
 	String confirmCreateRoomInFutureSessions(String futureSessions);
 	
@@ -5578,6 +5598,9 @@ public interface GwtMessages extends Messages {
 	@DefaultMessage("Learning Community Reservation")
 	String reservationLearningCommunity();
 	
+	@DefaultMessage("Student Filter")
+	String reservationUniversalOverride();
+	
 	@DefaultMessage("Individual")
 	String reservationIndividualAbbv();
 	
@@ -5598,6 +5621,12 @@ public interface GwtMessages extends Messages {
 	
 	@DefaultMessage("Override")
 	String reservationOverrideAbbv();
+	
+	@DefaultMessage("Filter")
+	String reservationUniversalAbbv();
+	
+	@DefaultMessage("Student Filter Override")
+	String reservationUniversalOverrideAbbv();
 	
 	@DefaultMessage("Unknown")
 	String reservationUnknownAbbv();
@@ -6934,12 +6963,24 @@ public interface GwtMessages extends Messages {
 	@DefaultMessage("Utilization_Type")
 	String utilSqlUtilizationType();
 
-	@DefaultMessage("Department")
+	@DefaultMessage("Course_Department")
 	String utilSqlDepartment();
 
 	@DefaultMessage("Subject")
 	String utilSqlSubject();
 
+	@DefaultMessage("Course_Number")
+	String utilSqlCourseNbr();
+
+	@DefaultMessage("Instr_Type")
+	String utilSqlItype();
+
+	@DefaultMessage("Section")
+	String utilSqlSection();
+
+	@DefaultMessage("Room_Controling_Dept")
+	String utilSqlRoomDept();
+	
 	@DefaultMessage("Size_Group")
 	String utilSqlRangeOfSizes();
 
@@ -7881,4 +7922,46 @@ public interface GwtMessages extends Messages {
 	
 	@DefaultMessage("Other (No Type)")
 	String toggleNoCourseType();
+	
+	@DefaultMessage("Do you realy want to delete this instructor attibute?")
+	String confirmDeleteInstructorAttribute();
+	
+	@DefaultMessage("Do you realy want to delete this {0}?")
+	String confirmDeleteItem(String item);
+	
+	@DefaultMessage("Do you realy want to delete this report?")
+	String confirmDeleteReport();
+	
+	@DefaultMessage("Do you realy want to delete this script?")
+	String confirmDeleteScript();
+	
+	@DefaultMessage("Too many users are using the page, please wait ...\nYour current position in waiting queue: {0}")
+	String waitTooManyUsersWaitInQueue(int queue);
+	
+	@DefaultMessage("Inactive Warning")
+	String dialogWarningInactive();
+	
+	@DefaultMessage("You have been inactive for {0} minutes. Do you want to continue?\n\nPlease choose to stay or to leave the {1}.")
+	String warnInactive(int minutes, String pageName);
+	
+	@DefaultMessage("Stay ({0})")
+	String buttonWarningInactiveStay(int seconds);
+	
+	@DefaultMessage("Leave")
+	String buttonWarningInactiveLeave();
+	
+	@DefaultMessage("The {0} was closed due to inactivity.")
+	String closedDueToInactivity(String pageName);
+	
+	@DefaultMessage("Student Filter:")
+	String propStudentFilter();
+	
+	@DefaultMessage("Student filter cannot remain empty.")
+	String hintReservationNoFilter();
+	
+	@DefaultMessage("(Link)")
+	String roomExternalLink();
+	
+	@DefaultMessage("\u2026 {0} more")
+	String moreItems(int count);
 }

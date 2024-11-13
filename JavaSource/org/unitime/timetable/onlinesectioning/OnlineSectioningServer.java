@@ -46,6 +46,7 @@ import org.unitime.timetable.onlinesectioning.model.XSchedulingRules;
 import org.unitime.timetable.onlinesectioning.model.XStudent;
 import org.unitime.timetable.onlinesectioning.model.XStudentId;
 import org.unitime.timetable.onlinesectioning.model.XTime;
+import org.unitime.timetable.onlinesectioning.model.XClassEnrollment;
 
 /**
  * @author Tomas Muller
@@ -56,6 +57,7 @@ public interface OnlineSectioningServer {
 	
 	public AcademicSessionInfo getAcademicSession();
 	public DistanceMetric getDistanceMetric();
+	public DistanceMetric getUnavailabilityDistanceMetric();
 	public DataProperties getConfig();
 	public OverExpectedCriterion getOverExpectedCriterion();
 	
@@ -143,6 +145,7 @@ public interface OnlineSectioningServer {
 	public <E> void setProperty(String name, E value);
 	
 	public void setSchedulingRules(XSchedulingRules rules);
+	public XSchedulingRule getSchedulingRule(Long studentId, StudentSchedulingRule.Mode mode, boolean isAdvisor, boolean isAdmin);
 	public XSchedulingRule getSchedulingRule(XStudent student, StudentSchedulingRule.Mode mode, boolean isAdvisor, boolean isAdmin);
 	
 	public static interface Lock {
@@ -158,4 +161,8 @@ public interface OnlineSectioningServer {
 		public boolean isEnabled();
 		public boolean checkDeadline(XTime sectionTime, Deadline type);
 	}
+
+	public XStudent getStudentForExternalId(String externalUniqueId);
+	public Collection<XClassEnrollment> getStudentSchedule(String studentExternalId);
+	public float[] getCredits(String studentExternalId);
 }

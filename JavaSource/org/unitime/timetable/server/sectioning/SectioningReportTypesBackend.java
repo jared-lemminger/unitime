@@ -41,6 +41,7 @@ import org.unitime.timetable.gwt.resources.StudentSectioningMessages;
 import org.unitime.timetable.reports.studentsct.CriticalCoursesReport;
 import org.unitime.timetable.reports.studentsct.IndividualStudentTimeOverlaps;
 import org.unitime.timetable.reports.studentsct.PerturbationsReport;
+import org.unitime.timetable.reports.studentsct.Reservations;
 import org.unitime.timetable.reports.studentsct.StudentAvailabilityConflicts;
 import org.unitime.timetable.reports.studentsct.UnasignedCourseRequests;
 import org.unitime.timetable.reports.studentsct.UnusedReservations;
@@ -77,14 +78,18 @@ public class SectioningReportTypesBackend implements GwtRpcImplementation<Sectio
 		NOT_ALLOWED_TIME_OVERLAPS_BT("Not Allowed Time Overlaps (Exclude Break Times)", IndividualStudentTimeOverlaps.class.getName(), "ignoreBreakTimeConflicts", "true", "includeAllowedOverlaps", "false"),
 		TEACHING_CONFLICTS("Teaching Conflicts", StudentAvailabilityConflicts.class.getName()),
 		TEACHING_CONFLICTS_NA("Teaching Conflicts (Exclude Allowed)", StudentAvailabilityConflicts.class.getName(), "includeAllowedOverlaps", "false"),
+		UNAVAILABILITIES(SCT_MSG.reportStudentUnavailabilityConflicts(), StudentUnavailabilityConflicts.class.getName()),
 		NOT_ASSIGNED_COURSE_REQUESTS(SCT_MSG.reportUnassignedCourseRequests(), UnasignedCourseRequests.class.getName()),
 		NOT_ASSIGNED_COURSE_REQUESTS_LC(SCT_MSG.reportUnassignedLCCourseRequests(), UnasignedCourseRequests.class.getName(), "type", RequestPriority.LC.name()),
 		NOT_ASSIGNED_COURSE_REQUESTS_CRITICAL(SCT_MSG.reportUnassignedCriticalCourseRequests(), UnasignedCourseRequests.class.getName(), "type",
 				RequestPriority.Critical.name() + "," + RequestPriority.Vital.name() + "," + RequestPriority.Important.name()),
+		CONFLICTING_COURSE_REQUESTS(SCT_MSG.reportConflictingCourseRequests(), UnasignedCourseRequests.class.getName(), "skipFull", "true"),
 		UNUSED_GROUP_RES(SCT_MSG.reportUnusedGroupReservations(), UnusedReservations.class.getName(), "type", "group"),
 		UNUSED_INDIVIDUAL_RES(SCT_MSG.reportUnusedIndividualReservations(), UnusedReservations.class.getName(), "type", "individual"),
 		UNUSED_OVERRIDE_RES(SCT_MSG.reportUnusedOverrideReservations(), UnusedReservations.class.getName(), "type", "override"),
 		UNUSED_LC_RES(SCT_MSG.reportUnusedLearningCommunityReservations(), UnusedReservations.class.getName(), "type", "lc"),
+		UNUSED_CUR_RES(SCT_MSG.reportUnusedCurriculumReservations(), UnusedReservations.class.getName(), "type", "curriculum"),
+		UNUSED_UNIV_RES(SCT_MSG.reportUnusedStudentFilterReservations(), UnusedReservations.class.getName(), "type", "universal"),
 		COURSE_REQUESTS(SCT_MSG.reportCourseRequestsWithPriorities(), RequestPriorityTable.class.getName(), "pritify", "false"),
 		TABLEAU_REPORT(SCT_MSG.reportTableauReport(), TableauReport.class.getName(), "pritify", "false"),
 		TABLEAU_SIMPLE(SCT_MSG.reportTableauSimpleReport(), TableauReport.class.getName(), "pritify", "false", "simple", "true"),
@@ -94,6 +99,7 @@ public class SectioningReportTypesBackend implements GwtRpcImplementation<Sectio
 		BTB_NO_BREAKS(SCT_MSG.reportBackToBacksNoBreak(), ZeroBreakTimeBackToBacksReport.class.getName()),
 		SECTIONING_ISSUES(SCT_MSG.reportSectioningIssues(), SectioningIssuesReport.class.getName(), "all", "false"),
 		SECTIONING_ISSUES_ALL(SCT_MSG.reportSectioningIssuesAllCourses(), SectioningIssuesReport.class.getName(), "all", "true"),
+		RESERVATIONS(SCT_MSG.reportReservations(), Reservations.class.getName()),
 		;
 		
 		String iName, iImplementation;
@@ -106,7 +112,7 @@ public class SectioningReportTypesBackend implements GwtRpcImplementation<Sectio
 		public String getImplementation() { return iImplementation; }
 		public String[] getParameters() { return iParameters; }
 		public ReportTypeInterface toReportTypeInterface() {
-			return new ReportTypeInterface(name(), iName, iImplementation, iParameters);
+			return new ReportTypeInterface(name(), iName, iImplementation, true, iParameters);
 		}
 	}
 

@@ -39,7 +39,6 @@ import org.cpsolver.exam.model.ExamPeriodPlacement;
 import org.cpsolver.exam.model.ExamPlacement;
 import org.cpsolver.exam.model.ExamRoom;
 import org.cpsolver.exam.model.ExamRoomPlacement;
-import org.cpsolver.exam.model.ExamRoomSharing;
 import org.cpsolver.ifs.assignment.Assignment;
 import org.cpsolver.ifs.extension.ConflictStatistics;
 import org.cpsolver.ifs.extension.Extension;
@@ -189,6 +188,7 @@ public class ExamSolver extends AbstractSolver<Exam, ExamPlacement, ExamModel> i
         lock.lock();
         try {
             Exam exam = getExam(examId);
+            if (exam == null) return null;
             ExamPlacement placement = (exam == null ? null : currentSolution().getAssignment().getValue(exam));
             return placement == null ? new ExamAssignmentInfo(exam, null, currentSolution().getAssignment()) : new ExamAssignmentInfo(placement, currentSolution().getAssignment());
         } finally {
@@ -716,15 +716,19 @@ public class ExamSolver extends AbstractSolver<Exam, ExamPlacement, ExamModel> i
             }
             for (Exam exam : unassign) currentSolution().getAssignment().unassign(0, exam);
             for (ExamPlacement placement : assign) {
-                for (Iterator i=placement.variable().getModel().conflictValues(currentSolution().getAssignment(), placement).iterator();i.hasNext();) {
-                    ExamPlacement conflict = (ExamPlacement)i.next();
-                    Exam conflictingExam = (Exam)conflict.variable();
-                    if (!undoAssign.containsKey(conflictingExam) && !undoUnassing.contains(conflictingExam)) 
-                        undoAssign.put(conflictingExam,conflict);
-                    conflicts.add(conflict);
-                    currentSolution().getAssignment().unassign(0, conflict.variable());
-                }
-                currentSolution().getAssignment().assign(0, placement);
+            	Set<ExamPlacement> conflictsThisPlacement = placement.variable().getModel().conflictValues(currentSolution().getAssignment(), placement);
+            	if (conflictsThisPlacement.contains(placement)) {
+            		conflicts.add(placement);
+            	} else {
+            		for (ExamPlacement conflict: conflictsThisPlacement) {
+                        Exam conflictingExam = (Exam)conflict.variable();
+                        if (!undoAssign.containsKey(conflictingExam) && !undoUnassing.contains(conflictingExam)) 
+                            undoAssign.put(conflictingExam,conflict);
+                        conflicts.add(conflict);
+                        currentSolution().getAssignment().unassign(0, conflict.variable());
+                    }
+                	currentSolution().getAssignment().assign(0, placement);
+            	}
             }
             change.getAssignments().clear();
             if (assign.isEmpty()) {
@@ -799,8 +803,6 @@ public class ExamSolver extends AbstractSolver<Exam, ExamPlacement, ExamModel> i
                 }
             }
             
-            ExamRoomSharing sharing = ((ExamModel)currentSolution().getModel()).getRoomSharing();
-            
             //compute rooms
             for (ExamRoomPlacement room: exam.getRoomPlacements()) {
                 
@@ -811,13 +813,7 @@ public class ExamSolver extends AbstractSolver<Exam, ExamPlacement, ExamModel> i
                 if (!room.isAvailable(period.getPeriod())) continue;
                 
                 boolean conf = !exam.checkDistributionConstraints(currentSolution().getAssignment(), room);
-                if (sharing == null) {
-                	for (ExamPlacement p: room.getRoom().getPlacements(currentSolution().getAssignment(), period.getPeriod()))
-                		if (!p.variable().equals(exam)) conf = true;
-                } else {
-                	if (sharing.inConflict(exam, room.getRoom().getPlacements(currentSolution().getAssignment(), period.getPeriod()), room.getRoom()))
-                		conf = true;
-                }
+                if (!conf && room.getRoom().inConflict(currentSolution().getAssignment(), exam, period.getPeriod())) conf = true;
 
                 if (!allowConflicts && conf) continue;
                 

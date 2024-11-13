@@ -71,12 +71,10 @@ public class SchedulingSubpart extends BaseSchedulingSubpart {
 
 /*[CONSTRUCTOR MARKER END]*/
 
-	/*
 	@Transient
 	public String getCourseName(){
 		return(this.getInstrOfferingConfig().getCourseName());
 	}
-	*/
 	
 	@Transient
 	public String getCourseNameWithTitle(){
@@ -300,6 +298,14 @@ public class SchedulingSubpart extends BaseSchedulingSubpart {
         return numRooms;
         
     }
+	
+	@Transient
+    public boolean isRoomSplitAttendance() {
+        if (getClasses() == null || getClasses().isEmpty()) return false;
+	    for (Class_ c: getClasses())
+	    	if (c.getNbrRooms() > 1 && Boolean.TRUE.equals(c.isRoomsSplitAttendance())) return true;
+	    return false;
+    }
     
 	@Transient
     public Set getDistributionPreferences() {
@@ -364,7 +370,7 @@ public class SchedulingSubpart extends BaseSchedulingSubpart {
 			Preference parentPref = (Preference)i.next();
 			for (Iterator j = ret.iterator(); j.hasNext();) {
 				Preference p = (Preference)j.next();
-				if (p.isSame(parentPref)) continue prefs;
+				if (p.isSame(parentPref, this)) continue prefs;
 			}
 			ret.add(parentPref);
 		}
@@ -754,14 +760,21 @@ public class SchedulingSubpart extends BaseSchedulingSubpart {
     }
     
 	@Transient
+    public Integer getLimit() {
+    	int ret = 0;
+    	for (Class_ c: getClasses()) {
+    		if (c.getExpectedCapacity() != null)
+    			ret += c.getExpectedCapacity();
+    	}
+    	return ret;
+    }
+    
+	@Transient
     public int getMaxExpectedCapacity() {
     	int ret = 0;
-    	for (Iterator i=getClasses().iterator();i.hasNext();) {
-    		Class_ c = (Class_)i.next();
-    		if (c.getMaxExpectedCapacity()!=null)
-    			ret += c.getMaxExpectedCapacity().intValue();
-    		else if (c.getExpectedCapacity()!=null) 
-    			ret += c.getExpectedCapacity().intValue();
+    	for (Class_ c: getClasses()) {
+    		if (c.getMaxExpectedCapacity() != null)
+    			ret += c.getMaxExpectedCapacity();
     	}
     	return ret;
     }
@@ -940,7 +953,8 @@ public class SchedulingSubpart extends BaseSchedulingSubpart {
 	 * @return list of dates that meet the selected minutes and date pattern
 	 */
 	public List<Date> getDates(DatePattern datePattern, int dayCode, int minutesPerMeeting) {
-		return getInstrOfferingConfig().getDurationModel().getDates(getMinutesPerWk(), datePattern, dayCode, minutesPerMeeting);
+		EventDateMapping.Class2EventDateMap class2eventDates = EventDateMapping.getMapping(getSession().getUniqueId());
+		return getInstrOfferingConfig().getDurationModel().getDates(getMinutesPerWk(), datePattern, dayCode, minutesPerMeeting, class2eventDates);
 	}
 	
 	public boolean isParentOf(SchedulingSubpart subpart) {

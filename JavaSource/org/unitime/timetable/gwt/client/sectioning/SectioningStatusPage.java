@@ -365,6 +365,17 @@ public class SectioningStatusPage extends Composite {
 					}
 				}
 				
+				if (iExport.isVisible()) {
+					MenuItem item = new MenuItem(UniTimeHeaderPanel.stripAccessKey(GWT_MESSAGES.buttonExportXLS()), true, new Command() {
+						@Override
+						public void execute() {
+							popup.hide();
+							exportData("xls");
+						}
+					});
+					menu.addItem(item);
+				}
+				
 				popup.add(menu);
 				popup.showRelativeTo((UIObject)event.getSource());
 				menu.focus();
@@ -527,7 +538,7 @@ public class SectioningStatusPage extends Composite {
 		
 		iExport.addClickHandler(new ClickHandler() {
 			public void onClick(ClickEvent event) {
-				exportData();
+				exportData("csv");
 			}
 		});
 		
@@ -1032,12 +1043,12 @@ public class SectioningStatusPage extends Composite {
 		}
 	}
 	
-	private void exportData() {
+	private void exportData(String format) {
 		int tab = iTabIndex;
 		if (tab < 0)
 			tab = SectioningStatusCookie.getInstance().getTab(iOnline);
 		
-		String query = "output=student-dashboard.csv&online=" + (iOnline ? 1 : 0) + "&tab=" + tab + "&sort=" + SectioningStatusCookie.getInstance().getSortBy(iOnline, tab);
+		String query = "output=student-dashboard." + format + "&online=" + (iOnline ? 1 : 0) + "&tab=" + tab + "&sort=" + SectioningStatusCookie.getInstance().getSortBy(iOnline, tab);
 		if (tab == 0)
 			for (Long courseId: iSelectedCourseIds)
 				query += "&c=" + courseId;
@@ -3154,7 +3165,7 @@ public class SectioningStatusPage extends Composite {
 									}
 								if (result != null && !result.isEmpty() && iMouseOver) {
 									ReservationTable rt = new ReservationTable(false, false);
-									rt.populate(result);
+									rt.populate(result, 5);
 									rt.getTable().setColumnVisible(ReservationColumn.LAST_LIKE.ordinal(), false);
 									rt.getTable().setColumnVisible(ReservationColumn.PROJECTED_BY_RULE.ordinal(), false);
 									rt.getTable().setColumnVisible(ReservationColumn.EXPIRATION_DATE.ordinal(), iOnline);

@@ -19,11 +19,10 @@
 */
 package org.unitime.timetable.gwt.client.sectioning;
 
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.google.gwt.user.client.Cookies;
+import org.unitime.timetable.gwt.client.ToolBox;
 
 /**
  * @author Tomas Muller
@@ -42,10 +41,11 @@ public class SectioningStatusCookie {
 	private Set<String>[] iHide = new Set[] {
 		new HashSet<String>(), new HashSet<String>(), new HashSet<String>(),
 		new HashSet<String>(), new HashSet<String>(), new HashSet<String>()};
+	private boolean iOtherSessionRecommendationsOpened = false;
 	
 	private SectioningStatusCookie() {
 		try {
-			String cookie = Cookies.getCookie("UniTime:StudentStatus");
+			String cookie = ToolBox.getCookie("UniTime:StudentStatus");
 			if (cookie != null) {
 				String[] params = cookie.split("\\|");
 				int idx = 0;
@@ -68,6 +68,7 @@ public class SectioningStatusCookie {
 				for (int i = 0; i < iHide.length; i++)
 					for (String col: params[idx++].split(","))
 						iHide[i].add(col);
+				iOtherSessionRecommendationsOpened = parseBoolean(params[idx++]);
 			}
 		} catch (Exception e) {
 		}
@@ -101,8 +102,8 @@ public class SectioningStatusCookie {
 				hide += (hide.isEmpty()?"":",") + col;
 			cookie += "|" + hide;
 		}
-		Date expires = new Date(new Date().getTime() + 604800000l); // expires in 7 days
-		Cookies.setCookie("UniTime:StudentStatus", cookie, expires);
+		cookie += "|" + (iOtherSessionRecommendationsOpened ? "1" : "0");
+		ToolBox.setCookie("UniTime:StudentStatus", cookie);
 	}
 	
 	public String getQuery(boolean online) {
@@ -188,5 +189,11 @@ public class SectioningStatusCookie {
 	
 	public boolean isOptionalEmailToggle(boolean defaultValue) {
 		return (iOptionalEmailToggle == null ? defaultValue : iOptionalEmailToggle.booleanValue());
+	}
+	
+	public boolean isOtherSessionRecommendationsOpened() { return iOtherSessionRecommendationsOpened; }
+	public void setOtherSessionRecommendationsOpened(boolean otherSessionRecommendationsOpened) {
+		iOtherSessionRecommendationsOpened = otherSessionRecommendationsOpened;
+		save();
 	}
 }

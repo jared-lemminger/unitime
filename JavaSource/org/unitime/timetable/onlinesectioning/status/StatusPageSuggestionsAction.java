@@ -720,27 +720,27 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 			
 			if ("area".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getArea(), term)) return true;
+					if (like(acm.getArea(), term)) return true;
 				for (XAreaClassificationMajor acm: student().getMinors())
-					if (eq(acm.getArea(), term)) return true;
+					if (like(acm.getArea(), term)) return true;
 			}
 			
 			if ("clasf".equals(attr) || "classification".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getClassification(), term)) return true;
+					if (like(acm.getClassification(), term)) return true;
 			}
 			
 			if ("major".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getMajor(), term)) return true;
+					if (like(acm.getMajor(), term)) return true;
 			}
 			if ("concentration".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getConcentration(), term)) return true;
+					if (like(acm.getConcentration(), term)) return true;
 			}
 			if ("degree".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getDegree(), term)) return true;
+					if (like(acm.getDegree(), term)) return true;
 			}
 			if ("program".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
@@ -753,25 +753,25 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 			
 			if ("primary-area".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getArea(), term)) return true;
+				if (acm != null && like(acm.getArea(), term)) return true;
 			}
 			
 			if ("primary-clasf".equals(attr) || "primary-classification".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getClassification(), term)) return true;
+				if (acm != null && like(acm.getClassification(), term)) return true;
 			}
 			
 			if ("primary-major".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getMajor(), term)) return true;
+				if (acm != null && like(acm.getMajor(), term)) return true;
 			}
 			if ("primary-concentration".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getConcentration(), term)) return true;
+				if (acm != null && like(acm.getConcentration(), term)) return true;
 			}
 			if ("primary-degree".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getDegree(), term)) return true;
+				if (acm != null && like(acm.getDegree(), term)) return true;
 			}
 			if ("primary-program".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
@@ -784,20 +784,20 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 			
 			if ("minor".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMinors())
-					if (eq(acm.getMajor(), term)) return true;
+					if (like(acm.getMajor(), term)) return true;
 			}
 			
 			if ("group".equals(attr)) {
 				for (XStudent.XGroup group: student().getGroups())
-					if (eq(group.getAbbreviation(), term)) return true;
+					if (like(group.getAbbreviation(), term)) return true;
 			} else {
 				for (XStudent.XGroup group: student().getGroups())
-					if (attr != null && eq(group.getType(), attr.replace('_', ' ')) && eq(group.getAbbreviation(), term)) return true;
+					if (attr != null && eq(group.getType(), attr.replace('_', ' ')) && like(group.getAbbreviation(), term)) return true;
 			}
 			
 			if ("accommodation".equals(attr)) {
 				for (XStudent.XGroup acc: student().getAccomodations())
-					if (eq(acc.getAbbreviation(), term)) return true;
+					if (like(acc.getAbbreviation(), term)) return true;
 			}
 			
 			if ("student".equals(attr)) {
@@ -857,6 +857,12 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 					return request().getCritical() == CourseDemand.Critical.IMPORTANT.ordinal() && isAssigned();
 				} else if (eq("Not Assigned Important", term)) {
 					return request().getCritical() == CourseDemand.Critical.IMPORTANT.ordinal() && !isAssigned();
+				} else if (eq("Visiting F2F", term)) {
+					return request().getCritical() == CourseDemand.Critical.VISITING_F2F.ordinal();
+				} else if (eq("Assigned Visiting F2F", term)) {
+					return request().getCritical() == CourseDemand.Critical.VISITING_F2F.ordinal() && isAssigned();
+				} else if (eq("Not Assigned Visiting F2F", term)) {
+					return request().getCritical() == CourseDemand.Critical.VISITING_F2F.ordinal() && !isAssigned();
 				} else if (eq("No-Subs", term) || eq("No-Substitutes", term)) {
 					return request().isNoSub(iWaitListMode);
 				} else if (eq("Assigned No-Subs", term) || eq("Assigned  No-Substitutes", term)) {
@@ -936,7 +942,7 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 			if ("status".equals(attr)) {
 				if ("default".equalsIgnoreCase(term) || "Not Set".equalsIgnoreCase(term))
 					return student().getStatus() == null;
-				return term.equalsIgnoreCase(status());
+				return like(status(), term);
 			}
 			
 			if ("credit".equals(attr)) {
@@ -1672,21 +1678,21 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 			if ("limit".equals(attr)) return true;
 			if ("area".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getArea(), term)) return true;
+					if (like(acm.getArea(), term)) return true;
 				for (XAreaClassificationMajor acm: student().getMinors())
-					if (eq(acm.getArea(), term)) return true;
+					if (like(acm.getArea(), term)) return true;
 			} else if ("clasf".equals(attr) || "classification".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getClassification(), term)) return true;
+					if (like(acm.getClassification(), term)) return true;
 			} else if ("major".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getMajor(), term)) return true;
+					if (like(acm.getMajor(), term)) return true;
 			} else if ("concentration".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getConcentration(), term)) return true;
+					if (like(acm.getConcentration(), term)) return true;
 			} else if ("degree".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
-					if (eq(acm.getDegree(), term)) return true;
+					if (like(acm.getDegree(), term)) return true;
 			} else if ("program".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMajors())
 					if (like(acm.getProgram(), term)) return true;
@@ -1695,19 +1701,19 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 					if (like(acm.getCampus(), term)) return true;
 			} else if ("primary-area".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getArea(), term)) return true;
+				if (acm != null && like(acm.getArea(), term)) return true;
 			} else if ("primary-clasf".equals(attr) || "primary-classification".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getClassification(), term)) return true;
+				if (acm != null && like(acm.getClassification(), term)) return true;
 			} else if ("primary-major".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getMajor(), term)) return true;
+				if (acm != null && like(acm.getMajor(), term)) return true;
 			} else if ("primary-concentration".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getConcentration(), term)) return true;
+				if (acm != null && like(acm.getConcentration(), term)) return true;
 			} else if ("primary-degree".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getDegree(), term)) return true;
+				if (acm != null && like(acm.getDegree(), term)) return true;
 			} else if ("primary-program".equals(attr)) {
 				XAreaClassificationMajor acm = student().getPrimaryMajor();
 				if (acm != null && like(acm.getProgram(), term)) return true;
@@ -1716,13 +1722,13 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 				if (acm != null && like(acm.getCampus(), term)) return true;
 			} else if ("minor".equals(attr)) {
 				for (XAreaClassificationMajor acm: student().getMinors())
-					if (eq(acm.getMajor(), term)) return true;
+					if (like(acm.getMajor(), term)) return true;
 			} else if ("group".equals(attr)) {
 				for (XStudent.XGroup group: student().getGroups())
-					if (eq(group.getAbbreviation(), term)) return true;
+					if (like(group.getAbbreviation(), term)) return true;
 			} else if ("accommodation".equals(attr)) {
 				for (XStudent.XGroup acc: student().getAccomodations())
-					if (eq(acc.getAbbreviation(), term)) return true;
+					if (like(acc.getAbbreviation(), term)) return true;
 			} else if  ("student".equals(attr)) {
 				return has(student().getName(), term) || eq(student().getExternalId(), term) || eq(student().getName(), term);
 			} else if  ("advisor".equals(attr)) {
@@ -1737,7 +1743,7 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 			} else if ("status".equals(attr)) {
 				if ("default".equalsIgnoreCase(term) || "Not Set".equalsIgnoreCase(term))
 					return student().getStatus() == null;
-				return term.equalsIgnoreCase(status());
+				return like(status(), term);
 			} else if ("credit".equals(attr)) {
 				float min = 0, max = Float.MAX_VALUE;
 				Credit prefix = Credit.eq;
@@ -1790,7 +1796,7 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 					if (r instanceof XCourseRequest) {
 						XCourseRequest cr = (XCourseRequest)r;
 						if (cr.getEnrollment() == null) continue;
-						XOffering o = server().getOffering(cr.getEnrollment().getOfferingId());
+						XOffering o = (server() == null ? null : server().getOffering(cr.getEnrollment().getOfferingId()));
 						XConfig g = (o == null ? null : o.getConfig(cr.getEnrollment().getConfigId()));
 						if (g != null) {
 							if ("!".equals(im) && g.getInstructionalMethod() != null && !g.getInstructionalMethod().getReference().equals(iServer.getAcademicSession().getDefaultInstructionalMethod())) continue;
@@ -1832,7 +1838,7 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 					if (r instanceof XCourseRequest) {
 						XCourseRequest cr = (XCourseRequest)r;
 						if (cr.getEnrollment() == null) continue;
-						XOffering o = server().getOffering(cr.getEnrollment().getOfferingId());
+						XOffering o = (server() == null ? null : server().getOffering(cr.getEnrollment().getOfferingId()));
 						if (o != null)
 							for (XSection section: o.getSections(cr.getEnrollment())) {
 								if (section.getTime() == null) continue;
@@ -1918,7 +1924,7 @@ public class StatusPageSuggestionsAction implements OnlineSectioningAction<List<
 					return student().getModalityPreference() == ModalityPreference.NO_PREFERENCE;
 			} else if (attr != null) {
 				for (XStudent.XGroup group: student().getGroups())
-					if (eq(group.getType(), attr.replace('_', ' ')) && eq(group.getAbbreviation(), term)) return true;
+					if (eq(group.getType(), attr.replace('_', ' ')) && like(group.getAbbreviation(), term)) return true;
 			}
 			return false;
 		}

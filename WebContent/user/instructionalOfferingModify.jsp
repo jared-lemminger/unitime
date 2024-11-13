@@ -100,6 +100,14 @@ function resetAllDisplayFlags(value, baseName) {
 	chbox[0].checked=value;
 	}
 }
+function checkNumberOfRooms(nbrRooms, id) {
+	if (nbrRooms && nbrRooms > 1) {
+		document.getElementById('sa'+id).disabled = false;
+	} else {
+		document.getElementById('sa'+id).disabled = true;
+		document.getElementById('sa'+id).checked = false;
+	}
+}
 </script>
 <s:hidden name="form.instrOfferingId"/>
 <s:hidden name="form.instrOfferingName"/>
@@ -121,9 +129,9 @@ function resetAllDisplayFlags(value, baseName) {
 <TR><TD valign="middle" colspan="2"><tt:section-header>
 	<tt:section-title><s:property value="form.instrOfferingName"/></tt:section-title>
 	<s:submit name='op' value='%{#msg.actionUpdateMultipleClassSetup()}'
-		accesskey='%{#msg.accessUpdateMultipleClassSetup()}' title='%{#msg.titleUpdateMultipleClassSetup(#msg.accessUpdateMultipleClassSetup())}'/>
+		accesskey='%{#msg.accessUpdateMultipleClassSetup()}' title='%{#msg.titleUpdateMultipleClassSetup(#msg.accessUpdateMultipleClassSetup())}' disabled="true"/>
 	<s:submit name='op' value='%{#msg.actionBackToIODetail()}'
-		accesskey='%{#msg.accessBackToIODetail()}' title='%{#msg.titleBackToIODetail(#msg.accessBackToIODetail())}'/>
+		accesskey='%{#msg.accessBackToIODetail()}' title='%{#msg.titleBackToIODetail(#msg.accessBackToIODetail())}' disabled="true"/>
 </tt:section-header></TD></TR>
 <s:if test="!fieldErrors.isEmpty()"><TR><TD colspan="2" align="left" class="errorTable">
 	<div class='errorHeader'><loc:message name="formValidationErrors"/></div><s:fielderror escape="false"/>
@@ -243,6 +251,7 @@ function resetAllDisplayFlags(value, baseName) {
 			</s:if>
 			<TD align="center" valign="bottom" rowSpan="2" class='WebTableHeader'><loc:message name="columnRoomRatioBr"/></TD>
 			<TD align="center" valign="bottom" rowSpan="2" class='WebTableHeader'><loc:message name="columnNbrRms"/></TD>
+			<TD align="center" valign="bottom" rowSpan="2" class='WebTableHeader'><loc:message name="columnSplitAttnd"/></TD>
 		</s:if>
 		<TD align="center" valign="bottom" rowSpan="2" class='WebTableHeader'><loc:message name="columnManagingDepartment"/></TD>
 		<TD align="center" valign="bottom" rowSpan="2" class='WebTableHeader'><loc:message name="columnDatePattern"/></TD>
@@ -370,6 +379,7 @@ function resetAllDisplayFlags(value, baseName) {
 			<s:hidden name="form.enabledForStudentScheduling[%{#ctr}]"/>
 			<s:hidden name="form.snapshotLimits[%{#ctr}]"/>
 			<s:hidden name="form.lms[%{#ctr}]"/>
+			<s:hidden name="form.splitAttendance[%{#ctr}]"/>
 			<TD colspan="${(6 + (form.displaySnapshotLimit ? 1 : 0) + (form.displayLms ? 1 : 0) + (form.displayDisplayInstructors ? 1 : 0) + (form.displayEnabledForStudentScheduling ? 1 : 0))}" style="font-style: italic;">
 				<loc:message name="classNoteCancelled"><s:property value="form.classLabels[#ctr]"/></loc:message></TD>
 		</s:if><s:else>
@@ -379,6 +389,7 @@ function resetAllDisplayFlags(value, baseName) {
 				<s:hidden name="form.roomRatios[%{#ctr}]"/>
 				<s:hidden name="form.numberOfRooms[%{#ctr}]"/>
 				<s:hidden name="form.snapshotLimits[%{#ctr}]"/>
+				<s:hidden name="form.splitAttendance[%{#ctr}]"/>
 			</s:if>
 			<s:if test="form.instrOffrConfigUnlimited == false">
 				<TD align="left" nowrap valign="top">
@@ -434,17 +445,28 @@ function resetAllDisplayFlags(value, baseName) {
 				</s:if></TD>
 				<TD align="left" valign="top" nowrap>
 					<s:if test="form.readOnlyClasses[#ctr] == 'false'">
-						<s:textfield name="form.numberOfRooms[%{#ctr}]" tabindex="%{(8000 + #ctr)}" maxlength="5" size="3"/>
+						<s:textfield name="form.numberOfRooms[%{#ctr}]" tabindex="%{(8000 + #ctr)}" maxlength="5" size="3" onchange="checkNumberOfRooms(this.value,'%{#ctr}')"/>
 					</s:if>
 					<s:if test="form.readOnlyClasses[#ctr] == 'true'">
 						<s:property value="%{form.numberOfRooms[#ctr]}"/>
 						<s:hidden name="form.numberOfRooms[%{#ctr}]"/>
 					</s:if>
 				</TD>
+				<TD align="center" valign="top" nowrap>
+					<s:if test="form.readOnlyClasses[#ctr] == 'false'">
+						<s:if test="form.numberOfRooms[#ctr] > 1"><s:checkbox name="form.splitAttendance[%{#ctr}]" tabindex="%{(9000 + #ctr)}" id="sa%{#ctr}"/></s:if>
+						<s:else><s:checkbox name="form.splitAttendance[%{#ctr}]" tabindex="%{(10000 + #ctr)}" id="sa%{#ctr}" disabled="true"/></s:else>
+					</s:if>
+					<s:if test="form.readOnlyClasses[#ctr] == 'true'">
+						<s:if test="form.splitAttendance[#ctr] == true && form.numberOfRooms[#ctr] > 1"><img src="images/accept.png"></s:if>
+						<s:if test="form.splitAttendance[#ctr] == false && form.numberOfRooms[#ctr] > 1"><img src="images/cross.png"></s:if>
+						<s:hidden name="form.splitAttendance[%{#ctr}]"/>
+					</s:if>
+				</TD>
 			</s:if>
 			<TD align="left" valign="top" nowrap>
 				<s:if test="form.readOnlyClasses[#ctr] == 'false'">
-					<s:select name="form.departments[%{#ctr}]" style="width:200px;" tabindex="%{(10000 + #ctr)}"
+					<s:select name="form.departments[%{#ctr}]" style="width:200px;" tabindex="%{(12000 + #ctr)}"
 						list="#request.externalDepartmentslist" listKey="uniqueId" listValue="managingDeptLabel"
 						headerKey="-1" headerValue="%{#msg.dropDeptDepartment()}"/>
 				</s:if>
@@ -456,7 +478,7 @@ function resetAllDisplayFlags(value, baseName) {
 			</s:if></TD>
 			<TD align="left" valign="top" nowrap>
 				<s:if test="form.readOnlyDatePatterns[#ctr] == 'false'">
-					<s:select name="form.datePatterns[%{#ctr}]" style="width:100px;" tabindex="%{(12000 + #ctr)}"
+					<s:select name="form.datePatterns[%{#ctr}]" style="width:100px;" tabindex="%{(14000 + #ctr)}"
 						list="#request.datePatternList" listKey="id" listValue="value"/>
 				</s:if>
 				<s:if test="form.readOnlyDatePatterns[#ctr] == 'true'">
@@ -469,7 +491,7 @@ function resetAllDisplayFlags(value, baseName) {
 			<s:if test="form.displayLms == true">
 				<TD align="left" valign="top" nowrap>
 					<s:if test="form.readOnlyClasses[#ctr] == 'false'">
-						<s:select name="form.lms[%{#ctr}]" style="width:100px;" tabindex="%{(14000 + #ctr)}"
+						<s:select name="form.lms[%{#ctr}]" style="width:100px;" tabindex="%{(16000 + #ctr)}"
 							list="#request.lmsList" listKey="id" listValue="value"/>
 					</s:if>
 					<s:if test="form.readOnlyClasses[#ctr] == 'true'">
@@ -484,10 +506,10 @@ function resetAllDisplayFlags(value, baseName) {
 			<s:if test="form.displayDisplayInstructors == true">
 				<TD align="center" valign="top" nowrap>
 					<s:if test="form.readOnlyClasses[#ctr] == 'false'">
-						<s:checkbox name="form.displayInstructors[%{#ctr}]" tabindex="%{(16000 + #ctr)}"/>
+						<s:checkbox name="form.displayInstructors[%{#ctr}]" tabindex="%{(18000 + #ctr)}"/>
 					</s:if>
 					<s:if test="form.readOnlyClasses[#ctr] == 'true'">
-						<s:if test="form.displayInstructors[#ctr] == true">
+						<s:if test="form.displayInstructors[#ctr] == 'true'">
 							<IMG border='0' title='${MSG.titleDisplayAllInstrForSubpartInSchedBook()}' alt='true' align='middle' src='images/accept.png'>
 						</s:if>
 						<s:hidden name="form.displayInstructors[%{#ctr}]"/>
@@ -499,7 +521,7 @@ function resetAllDisplayFlags(value, baseName) {
 			<s:if test="form.displayEnabledForStudentScheduling == true">
 				<TD align="center" valign="top" nowrap>
 					<s:if test="form.readOnlyClasses[#ctr] == 'false'">
-						<s:checkbox name="form.enabledForStudentScheduling[%{#ctr}]" tabindex="%{(18000 + #ctr)}"/>
+						<s:checkbox name="form.enabledForStudentScheduling[%{#ctr}]" tabindex="%{(20000 + #ctr)}"/>
 					</s:if>
 					<s:if test="form.readOnlyClasses[#ctr] == 'true'">
 						<s:if test="form.enabledForStudentScheduling[#ctr] == 'true'">
@@ -577,9 +599,14 @@ function resetAllDisplayFlags(value, baseName) {
 <TR><TD colspan="2" valign="middle"><DIV class="WelcomeRowHeadBlank">&nbsp;</DIV></TD></TR>
 <TR><TD colspan="2" align="right">
 	<s:submit name='op' value='%{#msg.actionUpdateMultipleClassSetup()}'
-		accesskey='%{#msg.accessUpdateMultipleClassSetup()}' title='%{#msg.titleUpdateMultipleClassSetup(#msg.accessUpdateMultipleClassSetup())}'/>
+		accesskey='%{#msg.accessUpdateMultipleClassSetup()}' title='%{#msg.titleUpdateMultipleClassSetup(#msg.accessUpdateMultipleClassSetup())}' disabled="true"/>
 	<s:submit name='op' value='%{#msg.actionBackToIODetail()}'
-		accesskey='%{#msg.accessBackToIODetail()}' title='%{#msg.titleBackToIODetail(#msg.accessBackToIODetail())}'/>
+		accesskey='%{#msg.accessBackToIODetail()}' title='%{#msg.titleBackToIODetail(#msg.accessBackToIODetail())}' disabled="true"/>
 </TD></TR></TABLE>
 </s:form>
+<script type="text/javascript">
+	var buttons = document.getElementsByName('op');
+	for (var i = 0; i < buttons.length; i++)
+		buttons[i].disabled = false;
+</script>
 </loc:bundle>

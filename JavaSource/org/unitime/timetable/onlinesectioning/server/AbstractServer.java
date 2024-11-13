@@ -24,6 +24,7 @@ import java.lang.reflect.Modifier;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.Date;
 import java.util.HashMap;
@@ -53,6 +54,7 @@ import org.unitime.timetable.defaults.ApplicationProperty;
 import org.unitime.timetable.gwt.resources.StudentSectioningMessages;
 import org.unitime.timetable.gwt.shared.PageAccessException;
 import org.unitime.timetable.gwt.shared.SectioningException;
+import org.unitime.timetable.model.FixedCreditUnitConfig;
 import org.unitime.timetable.model.Session;
 import org.unitime.timetable.model.SolverParameter;
 import org.unitime.timetable.model.SolverParameterDef;
@@ -77,11 +79,19 @@ import org.unitime.timetable.onlinesectioning.OnlineSectioningServerContext;
 import org.unitime.timetable.onlinesectioning.custom.CourseDetailsProvider;
 import org.unitime.timetable.onlinesectioning.model.XCourse;
 import org.unitime.timetable.onlinesectioning.model.XCourseId;
+import org.unitime.timetable.onlinesectioning.model.XCourseRequest;
+import org.unitime.timetable.onlinesectioning.model.XCredit;
+import org.unitime.timetable.onlinesectioning.model.XEnrollment;
 import org.unitime.timetable.onlinesectioning.model.XEnrollments;
+import org.unitime.timetable.onlinesectioning.model.XOffering;
+import org.unitime.timetable.onlinesectioning.model.XRequest;
 import org.unitime.timetable.onlinesectioning.model.XSchedulingRule;
 import org.unitime.timetable.onlinesectioning.model.XSchedulingRules;
+import org.unitime.timetable.onlinesectioning.model.XSection;
 import org.unitime.timetable.onlinesectioning.model.XStudent;
+import org.unitime.timetable.onlinesectioning.model.XSubpart;
 import org.unitime.timetable.onlinesectioning.model.XTime;
+import org.unitime.timetable.onlinesectioning.model.XClassEnrollment;
 import org.unitime.timetable.onlinesectioning.updates.CheckAllOfferingsAction;
 import org.unitime.timetable.onlinesectioning.updates.PersistExpectedSpacesAction;
 import org.unitime.timetable.onlinesectioning.updates.ReloadAllData;
@@ -97,6 +107,7 @@ public abstract class AbstractServer implements OnlineSectioningServer {
 	private static StudentSectioningMessages MSG = Localization.create(StudentSectioningMessages.class);
 	protected Log iLog = LogFactory.getLog(AbstractServer.class);
 	private DistanceMetric iDistanceMetric = null;
+	private DistanceMetric iUnavailabilityDistanceMetric = null;
 	private DataProperties iConfig = null;
 	protected XSchedulingRules iRules = null;
 	private OnlineSectioningActionFactory iActionFactory = null;
@@ -111,6 +122,12 @@ public abstract class AbstractServer implements OnlineSectioningServer {
 		iConfig = new ServerConfig();
 		iDistanceMetric = new DistanceMetric(iConfig);
 		TravelTime.populateTravelTimes(iDistanceMetric, context.getAcademicSessionId());
+		int unavailabilityMaxTravelTime = iConfig.getPropertyInteger("Distances.UnavailabilityMaxTravelTimeInMinutes", iDistanceMetric.getMaxTravelDistanceInMinutes());
+        if (unavailabilityMaxTravelTime != iDistanceMetric.getMaxTravelDistanceInMinutes()) {
+        	iUnavailabilityDistanceMetric = new DistanceMetric(iDistanceMetric);
+        	iUnavailabilityDistanceMetric.setMaxTravelDistanceInMinutes(unavailabilityMaxTravelTime);
+        	iUnavailabilityDistanceMetric.setComputeDistanceConflictsBetweenNonBTBClasses(true);
+        }
 		try {
 			iActionFactory = ((OnlineSectioningActionFactory)Class.forName(ApplicationProperty.CustomizationOnlineSectioningActionFactory.value()).getDeclaredConstructor().newInstance());
 		} catch (Exception e) {
@@ -144,6 +161,12 @@ public abstract class AbstractServer implements OnlineSectioningServer {
 		iConfig = new ServerConfig();
 		iDistanceMetric = new DistanceMetric(iConfig);
 		TravelTime.populateTravelTimes(iDistanceMetric, session.getUniqueId());
+		int unavailabilityMaxTravelTime = iConfig.getPropertyInteger("Distances.UnavailabilityMaxTravelTimeInMinutes", iDistanceMetric.getMaxTravelDistanceInMinutes());
+        if (unavailabilityMaxTravelTime != iDistanceMetric.getMaxTravelDistanceInMinutes()) {
+        	iUnavailabilityDistanceMetric = new DistanceMetric(iDistanceMetric);
+        	iUnavailabilityDistanceMetric.setMaxTravelDistanceInMinutes(unavailabilityMaxTravelTime);
+        	iUnavailabilityDistanceMetric.setComputeDistanceConflictsBetweenNonBTBClasses(true);
+        }
 		try {
 			iActionFactory = ((OnlineSectioningActionFactory)Class.forName(ApplicationProperty.CustomizationOnlineSectioningActionFactory.value()).getDeclaredConstructor().newInstance());
 		} catch (Exception e) {
@@ -319,6 +342,9 @@ public abstract class AbstractServer implements OnlineSectioningServer {
 	
 	@Override
 	public DistanceMetric getDistanceMetric() { return iDistanceMetric; }
+	
+	@Override
+	public DistanceMetric getUnavailabilityDistanceMetric() { return iUnavailabilityDistanceMetric == null ? iDistanceMetric : iUnavailabilityDistanceMetric; }
 	
 	@Override
 	public OverExpectedCriterion getOverExpectedCriterion() {
@@ -809,5 +835,94 @@ public abstract class AbstractServer implements OnlineSectioningServer {
 				mode,
 				StudentSchedulingRuleDAO.getInstance().getSession());
 		return (rule == null ? null : new XSchedulingRule(rule));
+	}
+	
+	@Override
+	public Collection<XClassEnrollment> getStudentSchedule(final String studentExternalId) {
+		XStudent student = getStudentForExternalId(studentExternalId);
+		if (student == null) return null;
+		List<XClassEnrollment> ret = new ArrayList<>();
+		for (XRequest request: student.getRequests()) {
+			if (request instanceof XCourseRequest) {
+				XCourseRequest cr = (XCourseRequest)request;
+				XEnrollment e = cr.getEnrollment();
+				if (e != null) {
+					XOffering offering = getOffering(e.getOfferingId());
+					XEnrollments enrl = getEnrollments(e.getOfferingId());
+					for (XSection section: offering.getSections(e)) {
+						XClassEnrollment ce = new XClassEnrollment(e, section);
+						if (section.getParentId() != null)
+							ce.setParentSectionName(offering.getSection(section.getParentId()).getName(e.getCourseId()));
+						if (enrl != null) ce.setEnrollment(enrl.countEnrollmentsForSection(section.getSectionId()));
+						XSubpart subpart = offering.getSubpart(section.getSubpartId());
+						ce.setCredit(subpart.getCredit(e.getCourseId()));
+						Float creditOverride = section.getCreditOverride(e.getCourseId());
+						if (creditOverride != null) ce.setCredit(FixedCreditUnitConfig.formatCredit(creditOverride));
+						ret.add(ce);
+					}
+				}
+			}
+		}
+		return ret;
+	}
+	
+	@Override
+	public XSchedulingRule getSchedulingRule(Long studentId, StudentSchedulingRule.Mode mode, boolean isAdvisor, boolean isAdmin) {
+		XStudent student = getStudent(studentId);
+		if (student == null) return null;
+		return getSchedulingRule(student, mode, isAdvisor, isAdmin);
+	}
+	
+	@Override
+	public float[] getCredits(String studentExternalId) {
+		XStudent student = getStudentForExternalId(studentExternalId);
+		if (student == null) return null;
+		List<Float> mins = new ArrayList<Float>();
+		List<Float> maxs = new ArrayList<Float>();
+		int nrCourses = 0;
+		float tMin = 0f, tMax = 0f, tEnrl = 0f;
+		for (XRequest request: student.getRequests()) {
+			if (request instanceof XCourseRequest) {
+				XCourseRequest cr = (XCourseRequest)request;
+				XEnrollment e = cr.getEnrollment();
+				if (e != null) {
+					float cred = e.getCredit(this);
+					tMin += cred; tMax += cred;
+					tEnrl += cred;
+					if (cr.isAlternative())
+						nrCourses --;
+				} else {
+					Float min = null, max = null;
+					for (XCourseId course: cr.getCourseIds()) {
+						XOffering offering = getOffering(course.getOfferingId());
+						XCredit rc = (offering == null ? null : offering.getCourse(course.getCourseId()).getCreditInfo());
+						if (cr != null) {
+							if (min == null || min > rc.getMinCredit()) min = rc.getMinCredit();
+							if (max == null || max < rc.getMaxCredit()) max = rc.getMaxCredit();
+						}
+					}
+					if (cr.isAlternative()) {
+						if (min != null) {
+							mins.add(min); maxs.add(max);
+						}
+					} else {
+						if (min != null) {
+							if (cr.isNoSub()) {
+								tMin += min; tMax += max;
+							} else {
+								mins.add(min); maxs.add(max); nrCourses ++;
+							}
+						}
+					}
+				}
+			}
+		}
+		Collections.sort(mins);
+		Collections.sort(maxs);
+		for (int i = 0; i < nrCourses; i++) {
+			tMin += mins.get(i);
+			tMax += maxs.get(maxs.size() - i - 1);
+		}
+		return new float[] {tMin, tMax, tEnrl};
 	}
 }

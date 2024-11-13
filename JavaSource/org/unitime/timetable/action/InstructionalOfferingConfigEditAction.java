@@ -730,8 +730,6 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
 	        io.removeConfiguration(ioc);
 
 	        io.computeLabels(hibSession);
-	        if (!ioc.isUnlimitedEnrollment().booleanValue())
-	        	io.setLimit(Integer.valueOf(io.getLimit().intValue() - ioc.getLimit().intValue()));
 
             ChangeLog.addChange(
                     hibSession,
@@ -762,8 +760,6 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
 	        hibSession.flush();
             tx.commit();
             
-            hibSession.refresh(io);
-
         	if (configChangeAction != null){
 	        	configChangeAction.performExternalInstrOffrConfigChangeAction(io, hibSession);
         	}
@@ -888,8 +884,6 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
             hibSession.flush();
 
             tx.commit();
-            hibSession.refresh(ioc);
-            hibSession.refresh(io);
             
         	if (configChangeAction != null){
 	        	configChangeAction.performExternalInstrOffrConfigChangeAction(io, hibSession);
@@ -902,18 +896,6 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
 	                tx.rollback();
             }
             catch (Exception e1) { }
-
-            try {
-                if (ioc!=null)
-                    hibSession.refresh(ioc);
-            }
-            catch (Exception e2) { }
-
-            try {
-                if (io!=null)
-                    hibSession.refresh(io);
-            }
-            catch (Exception e3) { }
 
             Debug.error(e);
             throw (e);
@@ -931,8 +913,12 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
             Set classes = subpart.getClasses();
             for (Iterator i=classes.iterator(); i.hasNext(); ) {
                 Class_ c = (Class_) i.next();
-                c.setParentClass(null);
-                hibSession.merge(c);
+                if (c.getParentClass() != null) {
+                	Class_ pc = c.getParentClass();
+                	if (pc != null) pc.getChildClasses().remove(c);
+                	c.setParentClass(null);
+                	hibSession.merge(c);
+                }
             }
         }
         else {
@@ -956,11 +942,14 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
 	                    Class_ childClass = (Class_) cci.next();
 
 	                    if (notDeletedSubparts.get(childClass.getSchedulingSubpart().getUniqueId())!=null) {
-	    	                Debug.debug("Setting class " + childClass.getClassLabel() + " to parent " + parentClass.getClassLabel());
-		                    childClass.setParentClass(parentClass);
-		                    parentClass.addToChildClasses(childClass);
-				            hibSession.merge(parentClass);
-				            hibSession.merge(childClass);
+	                    	Class_ previousParentClass = childClass.getParentClass();
+	                    	if (!parentClass.equals(previousParentClass)) {
+	                    		Debug.debug("Setting class " + childClass.getClassLabel() + " to parent " + parentClass.getClassLabel());
+	                        	if (previousParentClass != null) previousParentClass.getChildClasses().remove(childClass);
+	                    		childClass.setParentClass(parentClass);
+	                    		parentClass.addToChildClasses(childClass);
+	                    		hibSession.merge(childClass);
+	                    	}
 
 	                    }
 	                    else {
@@ -986,6 +975,8 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
 	   	                        childClass = (Class_) cci.next();
 	   		                    if (notDeletedSubparts.get(childClass.getSchedulingSubpart().getUniqueId())!=null) {
 	    	    	                Debug.debug("Setting ODD class " + childClass.getClassLabel() + " to parent " + parentClass.getClassLabel());
+	    	    	                Class_ previousParentClass = childClass.getParentClass();
+	    	                    	if (previousParentClass != null) previousParentClass.getChildClasses().remove(childClass);
 		   	                        childClass.setParentClass(parentClass);
 		    	                    parentClass.addToChildClasses(childClass);
 		    			            hibSession.merge(parentClass);
@@ -1023,6 +1014,8 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
     	                if (cci2.hasNext()) {
    	                        Class_ childClass = (Class_) cci2.next();
 	    	                Debug.debug("Setting ODD class " + childClass.getClassLabel() + " to parent " + parentClass.getClassLabel());
+	    	                Class_ previousParentClass = childClass.getParentClass();
+	                    	if (previousParentClass != null) previousParentClass.getChildClasses().remove(childClass);
    	                        childClass.setParentClass(parentClass);
     	                    parentClass.addToChildClasses(childClass);
     			            hibSession.merge(parentClass);
@@ -1076,6 +1069,9 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
                     }
                     j.remove();
                 }
+                
+                // Delete all distribution objects
+                tmpSubpart.deleteAllDistributionPreferences(hibSession);
 
                 // Delete from parent
                 SchedulingSubpart parentSubpart = tmpSubpart.getParentSubpart();
@@ -1132,6 +1128,7 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
         String numRooms = request.getParameter("nr" + sic.getId());
         String roomRatio = request.getParameter("rr" + sic.getId());
         String managingDept = request.getParameter("md" + sic.getId());
+        String splitAttendance = request.getParameter("sa" + sic.getId());
         String disabled = request.getParameter("disabled" + sic.getId());
 
         if(subpartId!=null)
@@ -1146,6 +1143,10 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
             sic.setNumClasses(Integer.parseInt(numClasses));
         if(numRooms!=null)
             sic.setNumRooms(Constants.getPositiveInteger(numRooms, 0));
+        if (splitAttendance!=null)
+        	sic.setSplitAttendance("true".equalsIgnoreCase(splitAttendance) || "on".equalsIgnoreCase(splitAttendance));
+        else
+        	sic.setSplitAttendance(false);
         if(roomRatio!=null)
             sic.setRoomRatio(Constants.getPositiveFloat(roomRatio, 0.0f));
         if(managingDept!=null)
@@ -1162,6 +1163,7 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
         float rr = sic.getRoomRatio();
         long md = sic.getManagingDeptId();
         boolean db = sic.isDisabled();
+        boolean sa = sic.isSplitAttendance();
 
         if (ioc.isUnlimitedEnrollment().booleanValue()) {
     		mnlpc = 0;
@@ -1169,6 +1171,7 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
             nr = 0;
             rr = 0;
         }
+        if (nr <= 1) sa = false;
 
         if (request.getParameter("varLimits")==null) {
             mnlpc = mxlpc;
@@ -1186,8 +1189,11 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
             subpart.setItype(sic.getItype());
             subpart.setMinutesPerWk(Integer.valueOf(mpw));
             subpart.setParentSubpart(parent);
+            if (parent != null) parent.addToChildSubparts(subpart);
             subpart.setAutoSpreadInTime(ApplicationProperty.SchedulingSubpartAutoSpreadInTimeDefault.isTrue());
             subpart.setStudentAllowOverlap(ApplicationProperty.SchedulingSubpartStudentOverlapsDefault.isTrue());
+            subpart.setClasses(new HashSet<Class_>());
+            subpart.setChildSubparts(new HashSet<SchedulingSubpart>());
             ioc.addToschedulingSubparts(subpart);
 
             if (md<0 && !ioc.isUnlimitedEnrollment().booleanValue() && rg!=null) {
@@ -1205,9 +1211,7 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
             }
 
             hibSession.persist(subpart);
-            hibSession.flush();
 
-            hibSession.refresh(subpart);
             sid = subpart.getUniqueId().longValue();
             Debug.debug("New subpart uniqueid: " + sid);
             sic.setSubpartId(sid);
@@ -1340,6 +1344,7 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
 	                c.setMaxExpectedCapacity(Integer.valueOf(mxlpc));
 	                c.setRoomRatio(Float.valueOf(rr));
 	                c.setNbrRooms(Integer.valueOf(nr));
+	                c.setRoomsSplitAttendance(sa);
 	                if (c.getDisplayInstructor() == null){
 	                	c.setDisplayInstructor(Boolean.valueOf(true));
 	                }
@@ -1405,13 +1410,18 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
                     || (parent!=null && subpart.getParentSubpart()==null) ) {
 
                 Debug.debug("Updating parent subparts and classes ...");
-                subpart.setParentSubpart(parent);
+            	if (subpart.getParentSubpart() != null)
+            		subpart.getParentSubpart().getChildSubparts().remove(subpart);
+            	subpart.setParentSubpart(parent);
+            	if (parent != null) parent.addToChildSubparts(subpart);
 
                 // Update parent for classes
     	        if (parent==null) {
     	            Debug.debug("No parent subparts ... making top level class");
     	            for (Iterator cci = subpart.getClasses().iterator(); cci.hasNext(); ) {
     	                Class_ childClass = (Class_) cci.next();
+    	                Class_ previousParentClass = childClass.getParentClass();
+                    	if (previousParentClass != null) previousParentClass.getChildClasses().remove(childClass);
     	                childClass.setParentClass(null);
 			            hibSession.merge(childClass);
     	            }
@@ -1435,19 +1445,23 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
 	    	                Class_ parentClass = (Class_) i.next();
 	    	                for (int j=0; j<classPerParent; j++) {
 	   	                        Class_ childClass = (Class_) cci.next();
-    	    	                Debug.debug("Setting class " + childClass.getClassLabel() + " to parent " + parentClass.getClassLabel());
-	    	                    childClass.setParentClass(parentClass);
-	    	                    parentClass.addToChildClasses(childClass);
-	    			            hibSession.merge(parentClass);
-	    			            hibSession.merge(childClass);
+	        	                Class_ previousParentClass = childClass.getParentClass();
+    	    	                if (!parentClass.equals(previousParentClass)) {
+    	                    		Debug.debug("Setting class " + childClass.getClassLabel() + " to parent " + parentClass.getClassLabel());
+    	                        	if (previousParentClass != null) previousParentClass.getChildClasses().remove(childClass);
+    	                    		childClass.setParentClass(parentClass);
+    	                    		parentClass.addToChildClasses(childClass);
+    	                    		hibSession.merge(childClass);
+    	    	                }
 
 	    	    	            if (classPerParentRem!=0) {
 	    	    	                if (cci.hasNext()) {
 	    	   	                        childClass = (Class_) cci.next();
 		    	    	                Debug.debug("Setting ODD class " + childClass.getClassLabel() + " to parent " + parentClass.getClassLabel());
+		    	    	                previousParentClass = childClass.getParentClass();
+		    	                    	if (previousParentClass != null) previousParentClass.getChildClasses().remove(childClass);
 	    	   	                        childClass.setParentClass(parentClass);
 	    	    	                    parentClass.addToChildClasses(childClass);
-	    	    			            hibSession.merge(parentClass);
 	    	    			            hibSession.merge(childClass);
 	    	    	                }
 
@@ -1463,9 +1477,10 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
     	    	                if (cci2.hasNext()) {
     	   	                        Class_ childClass = (Class_) cci2.next();
 	    	    	                Debug.debug("Setting ODD class " + childClass.getClassLabel() + " to parent " + parentClass.getClassLabel());
+	    	    	                Class_ previousParentClass = childClass.getParentClass();
+	    	                    	if (previousParentClass != null) previousParentClass.getChildClasses().remove(childClass);
     	   	                        childClass.setParentClass(parentClass);
     	    	                    parentClass.addToChildClasses(childClass);
-    	    			            hibSession.merge(parentClass);
     	    			            hibSession.merge(childClass);
     	    	                }
 
@@ -1481,10 +1496,6 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
            } // End If: Update Parent
 
             hibSession.merge(subpart);
-            hibSession.flush();
-            hibSession.refresh(subpart);
-            if (parent!=null)
-                hibSession.refresh(parent);
 
         } // End If: Subpart Exists
 
@@ -1515,6 +1526,7 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
 		int mxlpc = sic.getMaxLimitPerClass();
         int nc = sic.getNumClasses();
         int nr = sic.getNumRooms();
+        boolean sa = sic.isSplitAttendance();
         float rr = sic.getRoomRatio();
         long md = sic.getManagingDeptId();
         boolean db = sic.isDisabled();
@@ -1524,7 +1536,9 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
     		mxlpc = 0;
             nr = 0;
             rr = 0;
+            sa = false;
         }
+        if (nr <= 1) sa = false;
 
         if (request.getParameter("varLimits")==null) {
             mnlpc = mxlpc;
@@ -1658,6 +1672,7 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
                     c.setMaxExpectedCapacity(Integer.valueOf(mxlpc));
                     c.setRoomRatio(Float.valueOf(rr));
                     c.setNbrRooms(Integer.valueOf(nr));
+                    c.setRoomsSplitAttendance(sa);
                     c.setDisplayInstructor(Boolean.valueOf(true));
                     c.setEnabledForStudentScheduling(Boolean.valueOf(true));
         	        c.setPreferences(new HashSet());
@@ -1836,9 +1851,10 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
                                     childClass = (Class_) cci.next();
                                 } while (childClass.getParentClass()!=null);
 
+            	                Class_ previousParentClass = childClass.getParentClass();
+                            	if (previousParentClass != null) previousParentClass.getChildClasses().remove(childClass);
                                 childClass.setParentClass(parentClass);
                                 parentClass.addToChildClasses(childClass);
-            		            hibSession.merge(parentClass);
             		            hibSession.merge(childClass);
                             }
                         }
@@ -1943,6 +1959,7 @@ public class InstructionalOfferingConfigEditAction extends UniTimeAction<Instruc
         sic.setRoomRatio(rc);
         sic.setSubpartId(subpart.getUniqueId().longValue());
         sic.setManagingDeptId(md);
+        sic.setSplitAttendance(subpart.isRoomSplitAttendance());
         
         // Check Permissions on subpart
         if (!sessionContext.hasPermission(subpart, Right.InstrOfferingConfigEditSubpart) || mixedManaged) {

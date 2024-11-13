@@ -67,6 +67,12 @@ public class SectioningReportsExporter implements Exporter {
 	public String reference() {
 		return "sct-report.csv";
 	}
+	
+	protected Printer getPrinter(ExportHelper helper) throws IOException {
+		Printer out = new CSVPrinter(helper, false);
+		helper.setup(out.getContentType(), helper.getParameter("name").toLowerCase().replace('_', '-') + ".csv", false);
+		return out;
+	}
 
 	@Override
 	public void export(ExportHelper helper) throws IOException {
@@ -77,6 +83,7 @@ public class SectioningReportsExporter implements Exporter {
 			parameters.put(name, helper.getParameter(name));
 		}
 		parameters.put("useAmPm", CONSTANTS.useAmPm() ? "true" : "false");
+		parameters.setProperty("user", helper.getSessionContext().getUser().getExternalUserId());
 		
 		Long sessionId = helper.getAcademicSessionId();
 		if (sessionId == null && helper.getSessionContext().isAuthenticated())
@@ -95,7 +102,8 @@ public class SectioningReportsExporter implements Exporter {
 		SessionContext context = helper.getSessionContext();
 		DataProperties config = null;
 		if (online == null) {
-			context.checkPermissionAnyAuthority(sessionId, "Session", Right.StudentScheduling);
+			if (!context.hasPermission(Right.StudentSectioningSolverReports))
+				context.checkPermission(Right.StudentSectioningSolver);
 			
 			StudentSolverProxy solver = studentSectioningSolverService.getSolver("PUBLISHED_" + sessionId, sessionId);
 			if (solver == null)
@@ -125,7 +133,8 @@ public class SectioningReportsExporter implements Exporter {
 			
 			csv = solver.getReport(parameters);
 		} else {
-			context.checkPermissionAnyAuthority(sessionId, "Session", Right.StudentSectioningSolver);
+			if (!context.hasPermissionAnyAuthority(sessionId, "Session", Right.StudentSectioningSolverReports))
+				context.checkPermissionAnyAuthority(sessionId, "Session", Right.StudentSectioningSolver);
 			
 			StudentSolverProxy solver = studentSectioningSolverService.getSolver();
 			if (solver == null)
@@ -136,8 +145,7 @@ public class SectioningReportsExporter implements Exporter {
 		if (csv == null)
 			throw new GwtRpcException("No report was created.");
 		
-		Printer out = new CSVPrinter(helper, false);
-		helper.setup(out.getContentType(), helper.getParameter("name").toLowerCase().replace('_', '-') + ".csv", false);
+		Printer out = getPrinter(helper);
 		
 		if (config != null) {
             String term = config.getProperty("Data.Term");

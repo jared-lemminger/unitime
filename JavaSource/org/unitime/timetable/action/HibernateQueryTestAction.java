@@ -21,6 +21,7 @@ package org.unitime.timetable.action;
 
 import java.lang.reflect.Method;
 import java.net.URLEncoder;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Date;
@@ -55,13 +56,14 @@ import org.hibernate.sql.ast.tree.insert.InsertStatement;
 import org.hibernate.sql.ast.tree.select.SelectStatement;
 import org.hibernate.sql.ast.tree.update.UpdateStatement;
 import org.hibernate.sql.exec.spi.JdbcParameterBindings;
+import org.hibernate.HibernateException;
+import org.hibernate.JDBCException;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.dialect.Dialect;
 import org.hibernate.engine.spi.LoadQueryInfluencers;
 import org.hibernate.engine.spi.SessionFactoryImplementor;
 import org.hibernate.engine.spi.SessionImplementor;
-import org.hibernate.exception.SQLGrammarException;
 import org.unitime.commons.Debug;
 import org.unitime.commons.hibernate.util.HibernateUtil;
 import org.unitime.localization.impl.Localization;
@@ -140,7 +142,7 @@ public class HibernateQueryTestAction extends UniTimeAction<HibernateQueryTestFo
 					if (value == null || value.isEmpty()) {
 						Map<Long, String> vals = o.values(sessionContext.getUser());
 						if (vals == null || vals.isEmpty()) {
-							addFieldError("form.query", MSG.errorCannotSetQueryParameterNoValues());
+							addFieldError("form.query", MSG.errorCannotSetQueryParameterNoValues(o.name()));
 					        return "displayQueryForm";
 						}
 						value = "";
@@ -183,7 +185,7 @@ public class HibernateQueryTestAction extends UniTimeAction<HibernateQueryTestFo
 						if (value == null || value.isEmpty()) {
 							Map<Long, String> vals = o.values(sessionContext.getUser());
 							if (vals == null || vals.isEmpty()) {
-								addFieldError("form.query", MSG.errorCannotSetQueryParameterNoValues());
+								addFieldError("form.query", MSG.errorCannotSetQueryParameterNoValues(o.name()));
 						        return "displayQueryForm";
 							}
 							value = "";
@@ -224,7 +226,7 @@ public class HibernateQueryTestAction extends UniTimeAction<HibernateQueryTestFo
 			        			QueryOptions.NONE,
 			        			DomainParameterXref.from(sqm),
 			        			QueryParameterBindingsImpl.from(ParameterMetadataImpl.EMPTY, sfi),
-			        			new LoadQueryInfluencers(),
+			        			new LoadQueryInfluencers(sfi),
 			        			(SqlAstCreationContext)hibSession.getSessionFactory(),
 			        			false).translate();
 			        	String sql = dialect.getSqlAstTranslatorFactory()
@@ -237,10 +239,10 @@ public class HibernateQueryTestAction extends UniTimeAction<HibernateQueryTestFo
 			        			QueryOptions.NONE,
 			        			DomainParameterXref.from(sqm),
 			        			QueryParameterBindingsImpl.from(ParameterMetadataImpl.EMPTY, sfi),
-			        			new LoadQueryInfluencers(),
+			        			new LoadQueryInfluencers(sfi),
 			        			(SqlAstCreationContext)hibSession.getSessionFactory()).translate();
 			        	String sql = dialect.getSqlAstTranslatorFactory()
-			        			.buildDeleteTranslator(sfi, (DeleteStatement)tr.getSqlAst())
+			        			.buildMutationTranslator(sfi, (DeleteStatement)tr.getSqlAst())
 			        			.translate(JdbcParameterBindings.NO_BINDINGS, QueryOptions.NONE).getSqlString();
 			        	request.setAttribute("sql", sql);
 		        	} else if (sqm instanceof SqmInsertStatement) {
@@ -249,10 +251,10 @@ public class HibernateQueryTestAction extends UniTimeAction<HibernateQueryTestFo
 			        			QueryOptions.NONE,
 			        			DomainParameterXref.from(sqm),
 			        			QueryParameterBindingsImpl.from(ParameterMetadataImpl.EMPTY, sfi),
-			        			new LoadQueryInfluencers(),
+			        			new LoadQueryInfluencers(sfi),
 			        			(SqlAstCreationContext)hibSession.getSessionFactory()).translate();
 			        	String sql = dialect.getSqlAstTranslatorFactory()
-			        			.buildInsertTranslator(sfi, (InsertStatement)tr.getSqlAst())
+			        			.buildMutationTranslator(sfi, (InsertStatement)tr.getSqlAst())
 			        			.translate(JdbcParameterBindings.NO_BINDINGS, QueryOptions.NONE).getSqlString();
 			        	request.setAttribute("sql", sql);
 		        	} else if (sqm instanceof SqmUpdateStatement) {
@@ -261,10 +263,10 @@ public class HibernateQueryTestAction extends UniTimeAction<HibernateQueryTestFo
 			        			QueryOptions.NONE,
 			        			DomainParameterXref.from(sqm),
 			        			QueryParameterBindingsImpl.from(ParameterMetadataImpl.EMPTY, sfi),
-			        			new LoadQueryInfluencers(),
+			        			new LoadQueryInfluencers(sfi),
 			        			(SqlAstCreationContext)hibSession.getSessionFactory()).translate();
 			        	String sql = dialect.getSqlAstTranslatorFactory()
-			        			.buildUpdateTranslator(sfi, (UpdateStatement)tr.getSqlAst())
+			        			.buildMutationTranslator(sfi, (UpdateStatement)tr.getSqlAst())
 			        			.translate(JdbcParameterBindings.NO_BINDINGS, QueryOptions.NONE).getSqlString();
 			        	request.setAttribute("sql", sql);
 		        	}
@@ -342,13 +344,27 @@ public class HibernateQueryTestAction extends UniTimeAction<HibernateQueryTestFo
 		            hibSession.flush();
 		            HibernateUtil.clearCache();
 		        }
-            } catch (SQLGrammarException e) {
-            	if (e.getSQLException() != null)
-            		addFieldError("form.query", e.getSQLException().getMessage());
+            } catch (Exception e) {
+            	String message = null;
+            	Throwable f = e;
+            	while (f != null) {
+            		if (f instanceof JDBCException) {
+            			SQLException s = ((JDBCException)f).getSQLException();
+            			if (s != null && s.getMessage() != null && !s.getMessage().isEmpty()) {
+            				message = s.getMessage();
+                			break;
+            			}
+            		}
+            		if (f instanceof HibernateException)
+            			message = f.getMessage();
+            		if (f instanceof IllegalArgumentException)
+            			message = f.getMessage();
+            		f = f.getCause();
+            	}
+            	if (message != null && !message.isEmpty())
+            		addFieldError("form.query", message);
             	else
             		addFieldError("form.query", e.getMessage());
-            } catch (Exception e) {
-            	addFieldError("form.query", e.getMessage());
                 Debug.error(e);
             }
         }
@@ -418,7 +434,8 @@ public class HibernateQueryTestAction extends UniTimeAction<HibernateQueryTestFo
         	EntityType et = null;
         	try {
         		et = new _RootDAO().getSession().getMetamodel().entity(te.getJavaType());
-        	} catch (IllegalArgumentException e) {}
+        	} catch (IllegalArgumentException e) {
+        	} catch (NullPointerException e) {}
         	if (et == null) {
         		header(s, idx++, te.getAlias());
         	} else {
@@ -484,7 +501,8 @@ public class HibernateQueryTestAction extends UniTimeAction<HibernateQueryTestFo
         	EntityType et = null;
         	try {
         		et = new _RootDAO().getSession().getMetamodel().entity(te.getJavaType());
-        	} catch (IllegalArgumentException e) {}
+        	} catch (IllegalArgumentException e) {
+        	} catch (NullPointerException e) {}
         	if (et == null) {
         		line(s, x);
         	} else {

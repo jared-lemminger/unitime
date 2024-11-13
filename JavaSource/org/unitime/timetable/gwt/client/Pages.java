@@ -23,7 +23,6 @@ import org.unitime.timetable.gwt.client.admin.PasswordPage;
 import org.unitime.timetable.gwt.client.admin.ScriptPage;
 import org.unitime.timetable.gwt.client.admin.SimpleEditPage;
 import org.unitime.timetable.gwt.client.admin.TasksPage;
-import org.unitime.timetable.gwt.client.courseofferings.CourseOfferingEdit;
 import org.unitime.timetable.gwt.client.curricula.CurriculaPage;
 import org.unitime.timetable.gwt.client.curricula.CurriculumProjectionRulesPage;
 import org.unitime.timetable.gwt.client.departments.DepartmentsPage;
@@ -38,6 +37,9 @@ import org.unitime.timetable.gwt.client.instructor.TeachingRequestsPage;
 import org.unitime.timetable.gwt.client.instructor.survey.InstructorSurveyPage;
 import org.unitime.timetable.gwt.client.limitandprojectionsnapshot.LimitAndProjectionSnapshotPage;
 import org.unitime.timetable.gwt.client.offerings.AssignClassInstructorsPage;
+import org.unitime.timetable.gwt.client.offerings.CourseOfferingEdit;
+import org.unitime.timetable.gwt.client.offerings.InstrOfferingConfigPage;
+import org.unitime.timetable.gwt.client.offerings.MultipleClassSetupPage;
 import org.unitime.timetable.gwt.client.pointintimedata.PointInTimeDataReportsPage;
 import org.unitime.timetable.gwt.client.reservations.ReservationEdit;
 import org.unitime.timetable.gwt.client.reservations.ReservationsPage;
@@ -290,6 +292,14 @@ public enum Pages {
 	instructorSurvey(new PageFactory() {
 		public Widget create() { return new InstructorSurveyPage(); }
 		public String name(GwtMessages messages) { return messages.pageInstructorSurvey(); }
+		}),
+	multipleClassSetup(new PageFactory() {
+		public Widget create() { return new MultipleClassSetupPage(); }
+		public String name(GwtMessages messages) { return messages.pageMultipleClassSetup(); }
+		}),
+	instrOfferingConfig(new PageFactory() {
+		public Widget create() { return new InstrOfferingConfigPage(); }
+		public String name(GwtMessages messages) { return messages.pageInstrOfferingConfig(); }
 		}),
 	;
 	

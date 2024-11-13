@@ -667,7 +667,7 @@ public class RollForwardSessionAction extends UniTimeAction<RollForwardSessionFo
 		if (selectedSessionId != null){
 			StringBuilder sb = new StringBuilder();
 			
-			sb.append("from PointInTimeData pitd where pitd.session.uniqueId in (select distinct rfio.session ")
+			sb.append("from PointInTimeData pitd where pitd.session.uniqueId in (select distinct rfio.session.uniqueId ")
 			  .append(" from InstructionalOffering rfio, Session s inner join s.instructionalOfferings as io ")
 			  .append(" where s.uniqueId = :sessId ")
               .append(" and rfio.uniqueId = io.uniqueIdRolledForwardFrom )")
@@ -675,7 +675,7 @@ public class RollForwardSessionAction extends UniTimeAction<RollForwardSessionFo
 			pointInTimeDataSnapshots.addAll((List<PointInTimeData>)PointInTimeDataDAO.getInstance()
 					.getSession()
 					.createQuery(sb.toString(), PointInTimeData.class)
-					.setParameter("sessId", selectedSessionId.longValue())
+					.setParameter("sessId", selectedSessionId)
 					.list());
 		}
 		
@@ -691,17 +691,21 @@ public class RollForwardSessionAction extends UniTimeAction<RollForwardSessionFo
 				form.setExpirationCourseReservations(dates.hasExpirationDate("course") ? df.format(dates.getExpirationDate("course")) : null);
 				form.setExpirationCurriculumReservations(dates.hasExpirationDate("curriculum") ? df.format(dates.getExpirationDate("curriculum")) : null);
 				form.setExpirationGroupReservations(dates.hasExpirationDate("group") ? df.format(dates.getExpirationDate("group")) : null);
+				form.setExpirationUniversalReservations(dates.hasExpirationDate("universal") ? df.format(dates.getExpirationDate("universal")) : null);
 				form.setStartDateCourseReservations(dates.hasStartDate("course") ? df.format(dates.getStartDate("course")) : null);
 				form.setStartDateCurriculumReservations(dates.hasStartDate("curriculum") ? df.format(dates.getStartDate("curriculum")) : null);
 				form.setStartDateGroupReservations(dates.hasStartDate("group") ? df.format(dates.getStartDate("group")) : null);
+				form.setStartDateUniversalReservations(dates.hasStartDate("universal") ? df.format(dates.getStartDate("universal")) : null);
 			}
 		} else {
 			form.setExpirationCourseReservations(null);
 			form.setExpirationCurriculumReservations(null);
 			form.setExpirationGroupReservations(null);
+			form.setExpirationUniversalReservations(null);
 			form.setStartDateCourseReservations(null);
 			form.setStartDateCurriculumReservations(null);
 			form.setStartDateGroupReservations(null);
+			form.setStartDateUniversalReservations(null);
 		}
 	}
 	

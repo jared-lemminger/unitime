@@ -63,6 +63,7 @@ import org.cpsolver.studentsct.reservation.IndividualReservation;
 import org.cpsolver.studentsct.reservation.LearningCommunityReservation;
 import org.cpsolver.studentsct.reservation.Reservation;
 import org.cpsolver.studentsct.reservation.ReservationOverride;
+import org.cpsolver.studentsct.reservation.UniversalOverride;
 import org.unitime.timetable.gwt.shared.SectioningException;
 import org.unitime.timetable.gwt.shared.OnlineSectioningInterface.WaitListMode;
 import org.unitime.timetable.model.CourseDemand;
@@ -101,6 +102,7 @@ import org.unitime.timetable.onlinesectioning.model.XStudent.XGroup;
 import org.unitime.timetable.server.sectioning.SectioningReportTypesBackend.ReportType;
 import org.unitime.timetable.onlinesectioning.model.XStudentId;
 import org.unitime.timetable.onlinesectioning.model.XSubpart;
+import org.unitime.timetable.onlinesectioning.model.XUniversalReservation;
 
 /**
  * @author Tomas Muller
@@ -147,6 +149,7 @@ public class GenerateSectioningReport implements OnlineSectioningAction<CSVFile>
 					else if (StudentSectioningStatus.hasEffectiveOption(status, dbSession, StudentSectioningStatus.Option.nosubs))
 						noSubStates.add(status.getReference());
 			}
+	        boolean checkUnavailabilitiesFromOtherSessions = server.getConfig().getPropertyBoolean("General.CheckUnavailabilitiesFromOtherSessionsForReporting", false);
 			
 			Lock lock = server.readLock();
 			
@@ -286,6 +289,13 @@ public class GenerateSectioningReport implements OnlineSectioningAction<CSVFile>
 	        						for (String conc: concs) ((CurriculumReservation)clonedReservation).addConcentration(major, conc);
 	        				}
 	        				break;
+	        			case Universal:
+	        				XUniversalReservation uniR = (XUniversalReservation) reservation;
+	        				clonedReservation = new UniversalOverride(reservation.getReservationId(), reservation.isOverride(), reservation.getLimit(), clonedOffering, uniR.getFilter());
+	        				((UniversalOverride)clonedReservation).setMustBeUsed(uniR.mustBeUsed());
+	        				((UniversalOverride)clonedReservation).setAllowOverlap(uniR.isAllowOverlap());
+	        				((UniversalOverride)clonedReservation).setCanAssignOverLimit(uniR.canAssignOverLimit());
+	        				break;
 	        			default:
 	        				clonedReservation = new DummyReservation(clonedOffering);
 	        			}
@@ -376,6 +386,8 @@ public class GenerateSectioningReport implements OnlineSectioningAction<CSVFile>
 										clonnedRequest.setRequestPriority(RequestPriority.Vital);
 									else if (cr.getCritical() == CourseDemand.Critical.LC.ordinal())
 										clonnedRequest.setRequestPriority(RequestPriority.LC);
+									else if (cr.getCritical() == CourseDemand.Critical.VISITING_F2F.ordinal())
+										clonnedRequest.setRequestPriority(RequestPriority.VisitingF2F);
 								}
 								cr.fillChoicesIn(clonnedRequest);
 								XEnrollment enrollment = cr.getEnrollment();
@@ -410,6 +422,9 @@ public class GenerateSectioningReport implements OnlineSectioningAction<CSVFile>
 							}
 					}
 				}
+				
+				if (checkUnavailabilitiesFromOtherSessions)
+					GetInfo.fillInAllUnavailabilitiesFromOtherSessionsUsingDatabase(students, server, helper);
 				
 				for (XDistribution distribution: linkedSections) {
 					List<Section> linked = new ArrayList<Section>();

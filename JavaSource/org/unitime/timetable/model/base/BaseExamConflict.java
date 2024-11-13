@@ -21,7 +21,6 @@ package org.unitime.timetable.model.base;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
@@ -35,9 +34,7 @@ import java.util.Set;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.Formula;
-import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.annotations.Parameter;
-import org.unitime.commons.hibernate.id.UniqueIdGenerator;
+import org.unitime.commons.annotations.UniqueIdGenerator;
 import org.unitime.timetable.model.DepartmentalInstructor;
 import org.unitime.timetable.model.Exam;
 import org.unitime.timetable.model.ExamConflict;
@@ -70,10 +67,7 @@ public abstract class BaseExamConflict implements Serializable {
 
 
 	@Id
-	@GenericGenerator(name = "xconflict_id", type = UniqueIdGenerator.class, parameters = {
-		@Parameter(name = "sequence", value = "pref_group_seq")
-	})
-	@GeneratedValue(generator = "xconflict_id")
+	@UniqueIdGenerator(sequence = "pref_group_seq")
 	@Column(name="uniqueid")
 	public Long getUniqueId() { return iUniqueId; }
 	public void setUniqueId(Long uniqueId) { iUniqueId = uniqueId; }
@@ -86,11 +80,11 @@ public abstract class BaseExamConflict implements Serializable {
 	public Double getDistance() { return iDistance; }
 	public void setDistance(Double distance) { iDistance = distance; }
 
-	@Formula("(select count(*) from %SCHEMA%.xconflict_student x where x.conflict_id = uniqueid)")
+	@Formula("(select count(xs.student_id) from %SCHEMA%.xconflict_student xs where xs.conflict_id = uniqueid)")
 	public Integer getNrStudents() { return iNrStudents; }
 	public void setNrStudents(Integer nrStudents) { iNrStudents = nrStudents; }
 
-	@Formula("(select count(*) from %SCHEMA%.xconflict_instructor x where x.conflict_id = uniqueid)")
+	@Formula("(select count(xi.instructor_id) from %SCHEMA%.xconflict_instructor xi where xi.conflict_id = uniqueid)")
 	public Integer getNrInstructors() { return iNrInstructors; }
 	public void setNrInstructors(Integer nrInstructors) { iNrInstructors = nrInstructors; }
 

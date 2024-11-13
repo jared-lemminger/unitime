@@ -146,6 +146,7 @@ import org.unitime.timetable.model.StudentGroupReservation;
 import org.unitime.timetable.model.StudentGroupType;
 import org.unitime.timetable.model.StudentInstrMthPref;
 import org.unitime.timetable.model.StudentNote;
+import org.unitime.timetable.model.StudentSchedulingRule;
 import org.unitime.timetable.model.StudentSectioningPref;
 import org.unitime.timetable.model.StudentSectioningStatus;
 import org.unitime.timetable.model.SubjectArea;
@@ -411,6 +412,8 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 			if (!matcher.isAllCourseTypes() && !matcher.isNoCourseType() && types.isEmpty()) throw new SectioningException(MSG.exceptionCourseDoesNotExist(query));
 
 			List<OverrideType> overrides = hibSession.createQuery("from OverrideType order by label", OverrideType.class).setCacheable(true).list();
+			
+			StudentSchedulingRule rule = (cx.getStudentId() == null ? null : StudentSchedulingRule.getRuleFilter(cx.getStudentId(), server, sessionContext));
 
 			boolean excludeNotOffered = ApplicationProperty.CourseRequestsShowNotOffered.isFalse();
 			ArrayList<ClassAssignmentInterface.CourseAssignment> results = new ArrayList<ClassAssignmentInterface.CourseAssignment>();
@@ -468,10 +471,23 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 				course.setLastLike(c.getDemand());
 				results.add(course);
 				for (InstrOfferingConfig config: c.getInstructionalOffering().getInstrOfferingConfigs()) {
-					if (config.getEffectiveInstructionalMethod() != null)
-						course.addInstructionalMethod(config.getEffectiveInstructionalMethod().getUniqueId(), config.getEffectiveInstructionalMethod().getLabel());
-					else
-						course.setHasNoInstructionalMethod(true);
+					boolean imAvailable = true;
+					if (rule != null) {
+						if (rule.isDisjunctive()) {
+							if (rule.hasCourseName() && rule.matchesCourseName(c.getCourseName())) {
+							} else if (rule.hasCourseType() && rule.matchesCourseType(c.getCourseType())) {
+							} else if (rule.hasInstructionalMethod() && rule.matchesInstructionalMethod(config.getInstructionalMethod())) {
+							} else { imAvailable = false; }
+						} else {
+							if (!rule.matchesInstructionalMethod(config.getInstructionalMethod())) { imAvailable = false; }
+						}
+					}
+					if (imAvailable) {
+						if (config.getEffectiveInstructionalMethod() != null)
+							course.addInstructionalMethod(config.getEffectiveInstructionalMethod().getUniqueId(), config.getEffectiveInstructionalMethod().getLabel());
+						else
+							course.setHasNoInstructionalMethod(true);
+					}
 				}
 				if (parent != null && limit != null && limit > 0 && results.size() >= limit) break;
 			}
@@ -629,14 +645,27 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 					.setCacheable(true).setMaxResults(1).list()) {
 				courseOffering = c; break;
 			}
+			StudentSchedulingRule rule = (cx.getStudentId() == null ? null : StudentSchedulingRule.getRuleFilter(cx.getStudentId(), server, sessionContext));
 			if (courseOffering == null) throw new SectioningException(MSG.exceptionCourseDoesNotExist(course));
 			List<Class_> classes = new ArrayList<Class_>();
 			for (Iterator<InstrOfferingConfig> i = courseOffering.getInstructionalOffering().getInstrOfferingConfigs().iterator(); i.hasNext(); ) {
 				InstrOfferingConfig config = i.next();
-				for (Iterator<SchedulingSubpart> j = config.getSchedulingSubparts().iterator(); j.hasNext(); ) {
-					SchedulingSubpart subpart = j.next();
-					classes.addAll(subpart.getClasses());
+				boolean imAvailable = true;
+				if (rule != null) {
+					if (rule.isDisjunctive()) {
+						if (rule.hasCourseName() && rule.matchesCourseName(courseOffering.getCourseName())) {
+						} else if (rule.hasCourseType() && rule.matchesCourseType(courseOffering.getCourseType())) {
+						} else if (rule.hasInstructionalMethod() && rule.matchesInstructionalMethod(config.getInstructionalMethod())) {
+						} else { imAvailable = false; }
+					} else {
+						if (!rule.matchesInstructionalMethod(config.getInstructionalMethod())) { imAvailable = false; }
+					}
 				}
+				if (imAvailable)
+					for (Iterator<SchedulingSubpart> j = config.getSchedulingSubparts().iterator(); j.hasNext(); ) {
+						SchedulingSubpart subpart = j.next();
+						classes.addAll(subpart.getClasses());
+					}
 			}
 			Collections.sort(classes, new ClassComparator(ClassComparator.COMPARE_BY_HIERARCHY));
 			NameFormat nameFormat = NameFormat.fromReference(ApplicationProperty.OnlineSchedulingInstructorNameFormat.value());
@@ -767,22 +796,36 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 			}
 		}
 	}
+	
+	private boolean matchPrimaryCampus(Session session, String primaryCampus) {
+		if (primaryCampus == null) return false;
+		String preferredCampus = ApplicationProperty.StudentSchedulingPreferredCampus.value(session);
+		if (preferredCampus != null && !preferredCampus.isEmpty())
+			return primaryCampus.matches(preferredCampus);
+		return primaryCampus.equals(session.getAcademicInitiative());
+	}
 
 	public Collection<AcademicSessionProvider.AcademicSessionInfo> listAcademicSessions(boolean sectioning) throws SectioningException, PageAccessException {
 		ArrayList<AcademicSessionProvider.AcademicSessionInfo> ret = new ArrayList<AcademicSessionProvider.AcademicSessionInfo>();
 		ExternalTermProvider extTerm = getExternalTermProvider();
 		UniTimePrincipal principal = (UniTimePrincipal)getSessionContext().getAttribute(SessionAttribute.OnlineSchedulingUser);
+		boolean preferStudentCampus = ApplicationProperty.StudentSchedulingPreferStudentCampus.isTrue();
 		if (sectioning) {
 			for (String s: solverServerService.getOnlineStudentSchedulingContainer().getSolvers()) {
 				OnlineSectioningServer server = solverServerService.getOnlineStudentSchedulingContainer().getSolver(s);
 				if (server == null || !server.isReady()) continue;
 				Session session = SessionDAO.getInstance().get(Long.valueOf(s));
 				AcademicSessionInfo info = server.getAcademicSession();
+				String primaryCampus = null;
 				if (principal != null) {
 					Long studentId = principal.getStudentId(session.getUniqueId());
 					if (studentId == null) continue;
 					Student student = StudentDAO.getInstance().get(studentId);
 					if (student == null) continue;
+					if (preferStudentCampus) {
+						StudentAreaClassificationMajor primary = student.getPrimaryAreaClasfMajor();
+						primaryCampus = (primary == null || primary.getCampus() == null ? null : primary.getCampus().getReference());
+					}
 					StudentSectioningStatus status = student.getEffectiveStatus();
 					if (status != null && !status.hasOption(StudentSectioningStatus.Option.enabled)
 						&& (!getSessionContext().hasPermissionAnySession(session, Right.StudentSchedulingAdmin) || !status.hasOption(StudentSectioningStatus.Option.admin))
@@ -790,6 +833,14 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 						) continue;
 				} else {
 					if (!getSessionContext().hasPermissionOtherAuthority(session, Right.SchedulingAssistant, getStudentAuthority(session))) continue;
+					if (preferStudentCampus) {
+						Long studentId = getStudentId(session.getUniqueId());
+						if (studentId != null) {
+							Student student = StudentDAO.getInstance().get(studentId);
+							StudentAreaClassificationMajor primary = (student == null ? null : student.getPrimaryAreaClasfMajor());
+							primaryCampus = (primary == null || primary.getCampus() == null ? null : primary.getCampus().getReference());
+						}
+					}
 				}
 				ret.add(new AcademicSessionProvider.AcademicSessionInfo(
 						session.getUniqueId(),
@@ -797,18 +848,25 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 						MSG.sessionName(session.getAcademicYear(), session.getAcademicTerm(), session.getAcademicInitiative()),
 						session.getSessionBeginDateTime())
 						.setExternalCampus(extTerm == null ? null : extTerm.getExternalCampus(info))
-						.setExternalTerm(extTerm == null ? null : extTerm.getExternalTerm(info)));
+						.setExternalTerm(extTerm == null ? null : extTerm.getExternalTerm(info))
+						.setPrimary(preferStudentCampus && matchPrimaryCampus(session, primaryCampus))
+						);
 			}
 		} else {
 			for (Session session: SessionDAO.getInstance().findAll()) {
 				if (session.getStatusType().isTestSession()) continue;
 				if (session.getStatusType().canPreRegisterStudents()) {
 					AcademicSessionInfo info = new AcademicSessionInfo(session);
+					String primaryCampus = null;
 					if (principal != null) {
 						Long studentId = principal.getStudentId(session.getUniqueId());
 						if (studentId == null) continue;
 						Student student = StudentDAO.getInstance().get(studentId);
 						if (student == null) continue;
+						if (preferStudentCampus) {
+							StudentAreaClassificationMajor primary = student.getPrimaryAreaClasfMajor();
+							primaryCampus = (primary == null || primary.getCampus() == null ? null : primary.getCampus().getReference());
+						}
 						StudentSectioningStatus status = student.getEffectiveStatus();
 						if (status != null && !status.hasOption(StudentSectioningStatus.Option.regenabled)
 							&& (!getSessionContext().hasPermissionAnySession(session, Right.StudentSchedulingAdmin) || !status.hasOption(StudentSectioningStatus.Option.regadmin))
@@ -816,6 +874,14 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 							) continue;
 					} else {
 						if (!getSessionContext().hasPermissionOtherAuthority(session, Right.CourseRequests, getStudentAuthority(session))) continue;
+						if (preferStudentCampus) {
+							Long studentId = getStudentId(session.getUniqueId());
+							if (studentId != null) {
+								Student student = StudentDAO.getInstance().get(studentId);
+								StudentAreaClassificationMajor primary = (student == null ? null : student.getPrimaryAreaClasfMajor());
+								primaryCampus = (primary == null || primary.getCampus() == null ? null : primary.getCampus().getReference());
+							}
+						}
 					}
 					ret.add(new AcademicSessionProvider.AcademicSessionInfo(
 							session.getUniqueId(),
@@ -825,6 +891,8 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 							)
 							.setExternalCampus(extTerm == null ? null : extTerm.getExternalCampus(info))
 							.setExternalTerm(extTerm == null ? null : extTerm.getExternalTerm(info))
+							.setOnline(false)
+							.setPrimary(preferStudentCampus && matchPrimaryCampus(session, primaryCampus))
 							);
 				}
 			}
@@ -833,7 +901,6 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 			throw new SectioningException(MSG.exceptionNoSuitableAcademicSessions());
 		}
 		Collections.sort(ret);
-		if (!sectioning) Collections.reverse(ret);
 		return ret;
 	}
 	
@@ -1087,7 +1154,7 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 			getSessionContext().checkPermissionAnySession(Right.StudentSchedulingAdvisor);
 			org.hibernate.Session hibSession = StudentDAO.getInstance().createNewSession();
 			try {
-				List<Student> student = hibSession.createQuery("select m from Student m where m.externalUniqueId = :uid", Student.class).setParameter("uid", password).list();
+				List<Student> student = hibSession.createQuery("select m from Student m where m.externalUniqueId = :uid order by m.session.sessionBeginDateTime desc", Student.class).setParameter("uid", password).list();
 				if (!student.isEmpty()) {
 					UserContext user = getSessionContext().getUser();
 					UniTimePrincipal principal = new UniTimePrincipal(user.getTrueExternalUserId(), password, user.getTrueName());
@@ -3106,7 +3173,7 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 			if (check)
 				sLog.debug("ContextCheck: different student id, permission check: " + check);
 			else
-				sLog.warn("ContextCheck: different student id, permission check: " + check);
+				sLog.info("ContextCheck: different student id, permission check: " + check);
 		}
 	}
 	
@@ -3776,6 +3843,28 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 			ret.setStudentRequest(getRequest(student));
 		}
 		
+		for (Student otherStudent: CourseTypeDAO.getInstance().getSession().createQuery(
+				"select s from Student s where " +
+				"s.externalUniqueId = :studentId and " +
+				"s.session.academicYear = :year and s.session.academicTerm = :term and s.session.academicInitiative != :campus and " +
+				"s.advisorCourseRequests is not empty",
+				Student.class
+				).setParameter("studentId", student.getExternalUniqueId())
+				.setParameter("year", student.getSession().getAcademicYear())
+				.setParameter("term", student.getSession().getAcademicTerm())
+				.setParameter("campus", student.getSession().getAcademicInitiative()).list()) {
+			OnlineSectioningServer otherServer = getServerInstance(otherStudent.getSession().getUniqueId(), true);
+			if (otherServer != null) {
+				CourseRequestInterface recommendations = otherServer.execute(
+						otherServer.createAction(AdvisorGetCourseRequests.class)
+						.forStudent(otherStudent.getUniqueId()).checkDemands(false).checkHolds(false),
+						currentUser());
+				if (recommendations != null && !recommendations.isEmpty())
+					ret.addOtherSessionRecommendations(otherStudent.getSession().getAcademicInitiative(), recommendations);
+			}
+		}
+				
+						
 		if (ret.hasStudentRequest()) {
 			StudentSectioningStatus status = student.getEffectiveStatus();
 			if (CustomStudentEnrollmentHolder.isAllowWaitListing() && (status == null || status.hasOption(Option.waitlist))) {
@@ -3858,6 +3947,7 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 		ArrayList<AcademicSessionProvider.AcademicSessionInfo> ret = new ArrayList<AcademicSessionProvider.AcademicSessionInfo>();
 		ExternalTermProvider extTerm = getExternalTermProvider();
 		Set<Long> sessionIds = new HashSet<Long>();
+		boolean preferStudentCampus = ApplicationProperty.StudentSchedulingPreferStudentCampus.isTrue();
 		for (Student student: StudentDAO.getInstance().getSession().createQuery(
 				"from Student where externalUniqueId = :id", Student.class)
 				.setParameter("id", studentExternalId).setCacheable(true).list()) {
@@ -3866,6 +3956,11 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 			if (session.getStatusType().canPreRegisterStudents() || session.getStatusType().canOnlineSectionStudents()) {
 				if (!getSessionContext().hasPermissionAnySession(session, Right.AdvisorCourseRequests)) continue;
 				AcademicSessionInfo info = new AcademicSessionInfo(session);
+				String primaryCampus = null;
+				if (preferStudentCampus) {
+					StudentAreaClassificationMajor primary = student.getPrimaryAreaClasfMajor();
+					primaryCampus = (primary == null || primary.getCampus() == null ? null : primary.getCampus().getReference());
+				}
 				ret.add(new AcademicSessionProvider.AcademicSessionInfo(
 						session.getUniqueId(),
 						session.getAcademicYear(), session.getAcademicTerm(), session.getAcademicInitiative(),
@@ -3874,6 +3969,7 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 						)
 						.setExternalCampus(extTerm == null ? null : extTerm.getExternalCampus(info))
 						.setExternalTerm(extTerm == null ? null : extTerm.getExternalTerm(info))
+						.setPrimary(preferStudentCampus && matchPrimaryCampus(session, primaryCampus))
 						);
 				sessionIds.add(session.getUniqueId());
 			}
@@ -3887,6 +3983,11 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 			if (sessionIds.contains(session.getUniqueId())) continue;
 			if (!getSessionContext().hasPermissionAnySession(session, Right.AdvisorCourseRequests)) continue;
 			AcademicSessionInfo info = new AcademicSessionInfo(session);
+			String primaryCampus = null;
+			if (preferStudentCampus) {
+				StudentAreaClassificationMajor primary = student.getPrimaryAreaClasfMajor();
+				primaryCampus = (primary == null || primary.getCampus() == null ? null : primary.getCampus().getReference());
+			}
 			ret.add(new AcademicSessionProvider.AcademicSessionInfo(
 					session.getUniqueId(),
 					session.getAcademicYear(), session.getAcademicTerm(), session.getAcademicInitiative(),
@@ -3895,6 +3996,7 @@ public class SectioningServlet implements SectioningService, DisposableBean {
 					)
 					.setExternalCampus(extTerm == null ? null : extTerm.getExternalCampus(info))
 					.setExternalTerm(extTerm == null ? null : extTerm.getExternalTerm(info))
+					.setPrimary(preferStudentCampus && matchPrimaryCampus(session, primaryCampus))
 					);
 		}
 		Collections.sort(ret);

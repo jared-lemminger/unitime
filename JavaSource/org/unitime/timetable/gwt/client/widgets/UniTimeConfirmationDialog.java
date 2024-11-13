@@ -178,6 +178,10 @@ public class UniTimeConfirmationDialog extends UniTimeDialogBox {
 		center(true);
 	}
 	
+	public AriaButton getYes() { return iYes; }
+	public AriaButton getNo() { return iNo; }
+	public void setNoCallback(Command no) { iNoCommand = no; }
+	
 	public void center(final boolean defaultIsYes) {
 		super.center();
 		iDefaultIsYes = defaultIsYes;
@@ -197,6 +201,7 @@ public class UniTimeConfirmationDialog extends UniTimeDialogBox {
 	}
 	
 	protected void submit() {
+		if (!isShowing()) return;
 		if (iTextBox != null) {
 			if (iTextBox.getText().equalsIgnoreCase(iAnswer)) {
 				hide();
@@ -214,6 +219,10 @@ public class UniTimeConfirmationDialog extends UniTimeDialogBox {
 		new UniTimeConfirmationDialog(Type.ALERT, message, null, null, null).center();
 	}
 	
+	public static void alert(String message, boolean html) {
+		new UniTimeConfirmationDialog(Type.ALERT, message, html, null, null, null).center();
+	}
+
 	public static void info(String message) {
 		new UniTimeConfirmationDialog(Type.INFO, message, null, null, null).center();
 	}

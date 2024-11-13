@@ -651,6 +651,9 @@ public interface CourseMessages extends Messages {
 	@DefaultMessage("Room<br>Ratio")
 	String columnSubpartRoomRatio();
 	
+	@DefaultMessage("Split<br>Attendance")
+	String columnRoomSplitAttendance();
+	
 	@DefaultMessage("Managing<br>Department")
 	String columnSubpartManagingDepartment();
 	
@@ -689,6 +692,9 @@ public interface CourseMessages extends Messages {
 	
 	@DefaultMessage("Nbr<br>Rms")
 	String columnNbrRms();
+	
+	@DefaultMessage("Splt<br>Attd")
+	String columnSplitAttnd();
 	
 	@DefaultMessage("Managing Department")
 	String columnManagingDepartment();
@@ -2456,7 +2462,7 @@ public interface CourseMessages extends Messages {
 	String confirmClearAllClassPreferences();
 	
 	@DefaultMessage("This will create {0} classes. Continue?")
-	String confirmCreateTooManyClasses();
+	String confirmCreateTooManyClasses(int number);
 	
 	@DefaultMessage("This operation may result in deletion of existing subparts/classes. Continue?")
 	String confirmMayDeleteSubpartsClasses();
@@ -2557,10 +2563,10 @@ public interface CourseMessages extends Messages {
 	@DefaultMessage("Student are allowed to drop from this course up to {0}. week of classes.")
 	String textLastWeekDrop(String wkDrop);
 	
-	@DefaultMessage("displayLoading('Locking {0}...'); return true;")
+	@DefaultMessage("displayLoading(''Locking {0}...''); return true;")
 	String jsSubmitLockIO(String instrOfferingName);
 
-	@DefaultMessage("displayLoading('Unlocking {0}...'); return true;")
+	@DefaultMessage("displayLoading(''Unlocking {0}...''); return true;")
 	String jsSubmitUnlockIO(String instrOfferingName);
 	
 	@DefaultMessage("Course {0} is locked (students are not able to enroll to this course).")
@@ -3330,7 +3336,7 @@ public interface CourseMessages extends Messages {
 	String accessApplyInstructorFilter();
 	
 	@DefaultMessage("Apply Filter (Alt+{0})")
-	String titleApplyInstructorFilter();
+	String titleApplyInstructorFilter(String access);
 	
 	@DefaultMessage("Display:")
 	String propertyFilterDisplay();
@@ -3412,6 +3418,15 @@ public interface CourseMessages extends Messages {
     
     @DefaultMessage("Arr Hrs")
     String arrHrs();
+    
+    @DefaultMessage("Arr {0} Hrs")
+    String arrHrsN(int n);
+    
+    @DefaultMessage("Arrange Hours")
+    String arrangeHours();
+    
+    @DefaultMessage("Arrange {0} Hours")
+    String arrangeHoursN(int n);
     
     @DefaultMessage("Course")
 	String columnCourse();
@@ -3583,6 +3598,9 @@ public interface CourseMessages extends Messages {
 	
 	@DefaultMessage("You have been successfully logged out of UniTime, click <a href='logout'>here</a> to log out of all other applications as well.")
 	String casLoggedOut();
+	
+	@DefaultMessage("You have been successfully logged out of UniTime, click <a href='login.action'>here</a> to log in again.")
+	String opLoggedOut();
 	
 	@DefaultMessage("System Messages")
 	String sectSystemMessages();
@@ -3942,7 +3960,7 @@ public interface CourseMessages extends Messages {
 	String accessCancelSetting();
 	
 	@DefaultMessage("Add Application Setting (Alt + {0})")
-	String titleAddSetting();
+	String titleAddSetting(String access);
 	
 	@DefaultMessage("Save Application Setting (Alt + {0})")
 	String titleSaveSetting(String access);
@@ -4062,7 +4080,7 @@ public interface CourseMessages extends Messages {
 	String errorQueryIsRequired();
 	
 	@DefaultMessage("Unable to set parameter {0}: no available values.")
-	String errorCannotSetQueryParameterNoValues();
+	String errorCannotSetQueryParameterNoValues(String param);
 	
 	@DefaultMessage("Clear Cache")
 	String actionClearCache();
@@ -4457,34 +4475,34 @@ public interface CourseMessages extends Messages {
 	@DefaultMessage("Exact Time")
 	String timePatterTypeExactTime();
 	
-	@DefaultMessage("Invalid days '{0}'.")
+	@DefaultMessage("Invalid days ''{0}''.")
 	String errorInvalidDaysForToken(String token);
 	
-	@DefaultMessage("Days {0} invalid -- wrong number of days.")
+	@DefaultMessage("Days ''{0}'' invalid -- wrong number of days.")
 	String errorWrongNumberOfDaysForToken(String token);
 	
-	@DefaultMessage("Days '{0}' included more than once.")
+	@DefaultMessage("Days ''{0}'' included more than once.")
 	String errorDuplicateDaysToken(String token);
 	
-	@DefaultMessage("Invalid time '{0}' -- hour ({1}) must be between 0 and 23.")
+	@DefaultMessage("Invalid time ''{0}'' -- hour ({1}) must be between 0 and 23.")
 	String errorWrongHoursForTimeToken(String token, int hours);
 	
-	@DefaultMessage("Invalid time '{0}' -- minute ({1}) must be between 0 and 59.")
+	@DefaultMessage("Invalid time ''{0}'' -- minute ({1}) must be between 0 and 59.")
 	String errorWrongMinutesForTimeToken(String token, int min);
 	
-	@DefaultMessage("Invalid time '{0}' -- minute ({1}) must be divisible by 5.")
+	@DefaultMessage("Invalid time ''{0}'' -- minute ({1}) must be divisible by 5.")
 	String errorMinutesNotDivisibleByFiveForTimeToken(String token, int min);
 	
-	@DefaultMessage("Invalid time '{0}' -- the time cannot go over midnight.")
+	@DefaultMessage("Invalid time ''{0}'' -- the time cannot go over midnight.")
 	String errorTimeGoesOverMidnightForToken(String token);
 	
-	@DefaultMessage("Invalid time '{0}' -- not a number.")
+	@DefaultMessage("Invalid time ''{0}'' -- not a number.")
 	String errorTimeNotNumberForToken(String token);
 	
-	@DefaultMessage("Invalid time '{0}'.")
+	@DefaultMessage("Invalid time ''{0}''.")
 	String errorNotValidTimeForToken(String token);
 	
-	@DefaultMessage("Time '{0}' included more than once.")
+	@DefaultMessage("Time ''{0}'' included more than once.")
 	String errorDiplicateTimeToken(String token);
 	
 	@DefaultMessage("There is no Exact Time time pattern defined.")
@@ -4712,7 +4730,7 @@ public interface CourseMessages extends Messages {
 	@DefaultMessage("Default date pattern not set")
 	String infoNoDefaultDatePattern();
 	
-	@DefaultMessage("The academic session and all associated data will be deleted. Continue?'")
+	@DefaultMessage("The academic session and all associated data will be deleted. Continue?")
 	String confirmDeleteAcademicSession();
 	
 	@DefaultMessage("Add Academic Session")
@@ -5701,6 +5719,9 @@ public interface CourseMessages extends Messages {
 	@DefaultMessage("Include Student Group Reservations")
 	String optIncludeStudentGroupReservations();
 	
+	@DefaultMessage("Include Student Filter Reservations")
+	String optIncludeStudentUniversalReservations();
+	
 	@DefaultMessage("New Start Date:")
 	String propNewStartDate();
 	
@@ -5724,6 +5745,12 @@ public interface CourseMessages extends Messages {
 	
 	@DefaultMessage("Applies to student group reservations with an expiration date filled in.")
 	String infoNewExpirationDateGroup();
+	
+	@DefaultMessage("Applies to student filter reservations with a start date filled in.")
+	String infoNewStartDateUniversal();
+	
+	@DefaultMessage("Applies to student filter reservations with an expiration date filled in.")
+	String infoNewExpirationDateUniversal();
 	
 	@DefaultMessage("Create student groups that do not exist (with no students). Ignore group reservations that do not match otherwise.")
 	String optCreateStudentGroupsForReservations();
@@ -5811,4 +5838,157 @@ public interface CourseMessages extends Messages {
 	
 	@DefaultMessage("Email\nNotifications")
 	String columnAcademicSessionNotificationsDates();
+	
+	@DefaultMessage("Update Academic Sessions")
+	String columnAcademicSessionsToUpdate();
+	
+	@DefaultMessage("From {0}")
+	String notificationDatesFrom(String date);
+	
+	@DefaultMessage("To {0}")
+	String notificationDatesTo(String date);
+	
+	@DefaultMessage("Between {0} and {1}")
+	String notificationDatesBetween(String fromDate, String toDate);
+	
+	@DefaultMessage("{0} \u00d7 {1}")
+	String cellNbrRoomsAndRoomRatio(int nbrRooms, String roomRatio);
+	
+	@DefaultMessage("{0} @ {1}")
+	String cellNbrRoomsAndRoomRatioSlitAttendance(int nbrRooms, String roomRatio);
+	
+	@DefaultMessage("{0} at {1} each room")
+	String titleNbrRoomsAndRoomRatio(int nbrRooms, String roomRatio);
+	
+	@DefaultMessage("{0} at {1} total capacity")
+	String titleNbrRoomsAndRoomRatioSlitAttendance(int nbrRooms, String roomRatio);
+	
+	@DefaultMessage("Total")
+	String descClassMultipleRoomsSplitAttendance();
+	
+	@DefaultMessage("Each Room")
+	String descClassMultipleRoomsAlternativeAttendance();
+	
+	@DefaultMessage("Attendance:")
+	String propertyRoomSplitAttendance();
+	
+	@DefaultMessage("<b>Split</b> -- Class is split between multiple rooms.")
+	String descriptionClassMultipleRoomsSplitAttendance();
+	
+	@DefaultMessage("<b>Alternative</b> -- Class must fit each room.")
+	String descriptionClassMultipleRoomsAlternativeAttendance();
+	
+	@DefaultMessage("All Rooms")
+	String itemAllRooms();
+	
+	@DefaultMessage("{0}. Room")
+	String itemOnlyRoom(int roomNumber);
+	
+	@DefaultMessage("No rooms are available.")
+	String warnNoRoomsAreAvaliable();
+	
+	@DefaultMessage("Not enough rooms are available:")
+	String warnNotEnoughtRoomsAreAvaliable();
+	
+	@DefaultMessage("... {0} more")
+	String moreAvailableRooms(int more);
+	
+	@DefaultMessage("Page:")
+	String filterPage();
+	
+	@DefaultMessage("Type:")
+	String filterChartType();
+	
+	@DefaultMessage("Interval:")
+	String filterChartInterval();
+	
+	@DefaultMessage("From:")
+	String filterChartFrom();
+	
+	@DefaultMessage("To:")
+	String filterChartTo();
+	
+	@DefaultMessage("Basic Information")
+	String chartModeBasic();
+	
+	@DefaultMessage("Active Users")
+	String chartModeActive();
+	
+	@DefaultMessage("Average Times")
+	String chartModeTimes();
+	
+	@DefaultMessage("Last Day")
+	String chartIntervalLastDay();
+	
+	@DefaultMessage("Last Three Hours")
+	String chartIntervalLast3Hours();
+	
+	@DefaultMessage("Last Hour")
+	String chartIntervalLastHour();
+
+	@DefaultMessage("Last Week")
+	String chartIntervalLastWeek();
+
+	@DefaultMessage("Last Month")
+	String chartIntervalLastMonth();
+	
+	@DefaultMessage("Custom")
+	String chartIntervalCustom();
+	
+	@DefaultMessage("Date")
+	String chartBasicDate();
+
+	@DefaultMessage("Opened")
+	String chartBasicOpened();
+	
+	@DefaultMessage("Access")
+	String chartBasicAccess();
+	
+	@DefaultMessage("Active")
+	String chartBasicActive();
+	
+	@DefaultMessage("Waiting")
+	String chartBasicWaiting();
+	
+	@DefaultMessage("Got In")
+	String chartBasicGotIn();
+
+	@DefaultMessage("Left")
+	String chartBasicLeft();
+
+	@DefaultMessage("Gave Up")
+	String chartBasicGaveUp();
+	
+	@DefaultMessage("1 min")
+	String chartActive1m();
+
+	@DefaultMessage("2 mins")
+	String chartActive2m();
+
+	@DefaultMessage("5 mins")
+	String chartActive5m();
+
+	@DefaultMessage("10 mins")
+	String chartActive10m();
+
+	@DefaultMessage("15 mins")
+	String chartActive15m();
+	
+	@DefaultMessage("Access Time [m]")
+	String chartTimesAccess();
+	
+	@DefaultMessage("Wait Time [m]")
+	String chartTimesWait();
+
+	@DefaultMessage("Access when left [m]")
+	String chartTimesAccessLeft();
+	
+	@DefaultMessage("Wait when got in [m]")
+	String chartTimesWaitGotIn();
+	
+	@DefaultMessage("Multiple Departments")
+	String subpartMultipleManagers();
+	
+	@DefaultMessage("Cap")
+	String columnAssignedRoomCap();
 }

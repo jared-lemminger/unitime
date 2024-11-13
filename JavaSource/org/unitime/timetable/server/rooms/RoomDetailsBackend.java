@@ -26,6 +26,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,8 +36,9 @@ import java.util.TreeSet;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.hibernate.ObjectNotFoundException;
-import org.springframework.security.crypto.codec.Base64;
 import org.unitime.localization.impl.Localization;
 import org.unitime.localization.messages.CourseMessages;
 import org.unitime.timetable.defaults.ApplicationProperty;
@@ -61,6 +63,7 @@ import org.unitime.timetable.gwt.shared.RoomInterface.RoomDetailInterface;
 import org.unitime.timetable.gwt.shared.RoomInterface.RoomFilterRpcRequest;
 import org.unitime.timetable.gwt.shared.RoomInterface.RoomPictureInterface;
 import org.unitime.timetable.gwt.shared.RoomInterface.RoomTypeInterface;
+import org.unitime.timetable.interfaces.RoomUrlProvider;
 import org.unitime.timetable.model.Building;
 import org.unitime.timetable.model.ChangeLog;
 import org.unitime.timetable.model.Department;
@@ -77,6 +80,7 @@ import org.unitime.timetable.model.RoomFeature;
 import org.unitime.timetable.model.RoomFeatureType;
 import org.unitime.timetable.model.RoomGroup;
 import org.unitime.timetable.model.RoomTypeOption;
+import org.unitime.timetable.onlinesectioning.custom.Customization;
 import org.unitime.timetable.security.SessionContext;
 import org.unitime.timetable.security.UserAuthority;
 import org.unitime.timetable.security.qualifiers.SimpleQualifier;
@@ -87,6 +91,7 @@ import org.unitime.timetable.security.rights.Right;
  */
 @GwtRpcImplements(RoomFilterRpcRequest.class)
 public class RoomDetailsBackend extends RoomFilterBackend {
+	private static Log sLog = LogFactory.getLog(RoomDetailsBackend.class);
 	protected static final GwtMessages MESSAGES = Localization.create(GwtMessages.class);
 	public static final CourseMessages MSG = Localization.create(CourseMessages.class);
 	
@@ -112,7 +117,7 @@ public class RoomDetailsBackend extends RoomFilterBackend {
 		
 		Set<String> flags = (options == null ? null : options.get("flag"));
 		boolean fetch = (flags != null && flags.contains("fetch"));
-		if (fetch) {
+		if (fetch && ApplicationProperty.RoomEditPrefetchRelations.isTrue()) {
 			query.addFrom("fetch", "left join fetch l.roomDepts Frd " +
 				" left join fetch l.examTypes Fxt" +
 				" left join fetch l.features Ff" +
@@ -331,12 +336,14 @@ public class RoomDetailsBackend extends RoomFilterBackend {
         	
         	response.setEventNote(location.getNote());
         	response.setBreakTime(location.getBreakTime());
+        	response.setEventEmail(location.getEventEmail());
         	if (location.getEventDepartment() != null) {
             	response.setEventStatus(location.getEventStatus());
             	RoomTypeOption rto = location.getRoomType().getOption(location.getEventDepartment());
             	response.setDefaultEventStatus(rto.getStatus());
             	response.setDefaultBreakTime(rto.getBreakTime());
             	response.setDefaultEventNote(rto.getMessage());
+            	response.setDefaultEventEmail(rto.getEventEmail());
             	for (EventServiceProvider p: location.getAllowedServices()) {
 		    		if (!p.isVisible() || p.isAllRooms()) continue;
 		    		EventServiceProviderInterface provider = new EventServiceProviderInterface();
@@ -409,6 +416,15 @@ public class RoomDetailsBackend extends RoomFilterBackend {
             	response.setLastChange(lch.getShortLabel());
     	}
     	
+    	RoomUrlProvider url = Customization.RoomUrlProvider.getProvider();
+    	if (url != null) {
+    		try {
+    			response.setUrl(url.getRoomUrl(location));
+    		} catch (Exception e) {
+    			sLog.error("Failed to get room URL: " + e.getMessage(), e);
+    		}
+    	}
+
     	return response;
 	}
 	
@@ -418,7 +434,7 @@ public class RoomDetailsBackend extends RoomFilterBackend {
 		public UrlSigner(String keyString) throws IOException {
 			keyString = keyString.replace('-', '+');
 			keyString = keyString.replace('_', '/');
-			key = Base64.decode(keyString.getBytes());
+			key = Base64.getDecoder().decode(keyString.getBytes());
 		}
 		
 		public String signRequest(String mapsUrl) throws NoSuchAlgorithmException, InvalidKeyException, UnsupportedEncodingException, URISyntaxException, MalformedURLException {
@@ -428,7 +444,7 @@ public class RoomDetailsBackend extends RoomFilterBackend {
 			Mac mac = Mac.getInstance("HmacSHA1");
 			mac.init(sha1Key);
 			byte[] sigBytes = mac.doFinal(resource.getBytes());
-			String signature = new String(Base64.encode(sigBytes));
+			String signature = new String(Base64.getEncoder().encode(sigBytes));
 			signature = signature.replace('+', '-');
 			signature = signature.replace('/', '_');
 			return signature;

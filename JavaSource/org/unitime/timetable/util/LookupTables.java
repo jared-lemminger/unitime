@@ -29,11 +29,15 @@ import java.util.Vector;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.hibernate.ObjectNotFoundException;
 import org.hibernate.query.Query;
 import org.unitime.commons.Debug;
+import org.unitime.localization.impl.Localization;
+import org.unitime.localization.messages.CourseMessages;
 import org.unitime.timetable.defaults.ApplicationProperty;
 import org.unitime.timetable.defaults.UserProperty;
 import org.unitime.timetable.model.Building;
+import org.unitime.timetable.model.Class_;
 import org.unitime.timetable.model.CourseCreditFormat;
 import org.unitime.timetable.model.CourseCreditType;
 import org.unitime.timetable.model.CourseCreditUnitType;
@@ -59,6 +63,7 @@ import org.unitime.timetable.model.Roles;
 import org.unitime.timetable.model.Room;
 import org.unitime.timetable.model.RoomFeature;
 import org.unitime.timetable.model.RoomGroup;
+import org.unitime.timetable.model.SchedulingSubpart;
 import org.unitime.timetable.model.SubjectArea;
 import org.unitime.timetable.model.TeachingResponsibility;
 import org.unitime.timetable.model.TimetableManager;
@@ -66,6 +71,7 @@ import org.unitime.timetable.model.comparators.CourseOfferingComparator;
 import org.unitime.timetable.model.comparators.DepartmentalInstructorComparator;
 import org.unitime.timetable.model.dao.CourseTypeDAO;
 import org.unitime.timetable.model.dao.DepartmentalInstructorDAO;
+import org.unitime.timetable.model.dao._RootDAO;
 import org.unitime.timetable.security.SessionContext;
 import org.unitime.timetable.security.UserContext;
 
@@ -76,6 +82,7 @@ import org.unitime.timetable.security.UserContext;
  * @author Heston Fernandes, Tomas Muller
  */
 public class LookupTables {
+	protected final static CourseMessages MSG = Localization.create(CourseMessages.class);
     
     /**
      * Get Itypes and store it in request object
@@ -132,6 +139,28 @@ public class LookupTables {
 
     public static void setupRooms(HttpServletRequest request, PreferenceGroup pg) throws Exception {
     	request.setAttribute(Room.ROOM_LIST_ATTR_NAME, pg.getAvailableRooms());
+    	if (pg instanceof Class_) {
+    		Class_ clazz = (Class_)pg;
+    		if (clazz.getNbrRooms() > 1) {
+    			List<ComboBoxLookup> indexes = new ArrayList<ComboBoxLookup>();
+    			indexes.add(new ComboBoxLookup(MSG.itemAllRooms(), "-"));
+    			for (int i = 0; i < clazz.getNbrRooms(); i++) {
+    				indexes.add(new ComboBoxLookup(MSG.itemOnlyRoom(i + 1), String.valueOf(i)));
+    			}
+    			request.setAttribute("roomIndexes", indexes);
+    		}
+    	} else if (pg instanceof SchedulingSubpart) {
+    		SchedulingSubpart subpart = (SchedulingSubpart)pg;
+    		int maxRooms = subpart.getMaxRooms();
+    		if (maxRooms > 1) {
+    			List<ComboBoxLookup> indexes = new ArrayList<ComboBoxLookup>();
+    			indexes.add(new ComboBoxLookup(MSG.itemAllRooms(), "-"));
+    			for (int i = 0; i < maxRooms; i++) {
+    				indexes.add(new ComboBoxLookup(MSG.itemOnlyRoom(i + 1), String.valueOf(i)));
+    			}
+    			request.setAttribute("roomIndexes", indexes);
+    		}
+    	}
     }
     
     
@@ -371,8 +400,17 @@ public class LookupTables {
     	
 		List<CourseOffering> list = new ArrayList<CourseOffering>();
 		for (SubjectArea subject: SubjectArea.getUserSubjectAreas(context.getUser())) {
-			for (CourseOffering co: subject.getCourseOfferings()) {
-				if (filter == null || filter.accept(co))
+			Iterator<CourseOffering> i = null;
+			try {
+				i = subject.getCourseOfferings().iterator();
+			}
+			catch (ObjectNotFoundException e) {
+			    new _RootDAO().getSession().refresh(subject);
+			    i = subject.getCourseOfferings().iterator();
+			}
+			for (;i.hasNext();) {
+				CourseOffering co = i.next();
+				if (co != null && (filter == null || filter.accept(co)))
 					list.add(co);
 			}
 		}

@@ -89,7 +89,8 @@ public enum ApplicationProperty {
 	@Implements(Dialect.class)
 	@Description("Database: dialect (e.g., org.hibernate.dialect.Oracle10gDialect)")
 	@ReadOnly
-	DatabaseDialect("dialect"),
+	@Replaces({"dialect"})
+	DatabaseDialect("hibernate.dialect"),
 	
 	@Description("Database: connection url")
 	@ReadOnly
@@ -118,7 +119,8 @@ public enum ApplicationProperty {
 	@DefaultValue("timetable")
 	@Description("Database: schema (e.g., timetable)")
 	@ReadOnly
-	DatabaseSchema("default_schema"),
+	@Replaces({"default_schema"})
+	DatabaseSchema("hibernate.default_schema"),
 
 	@Type(Class.class)
 	@Implements(IdentifierGenerator.class)
@@ -655,6 +657,14 @@ public enum ApplicationProperty {
 	@Description("Online Student Scheduling: CC advisors in the student email confirmation from a particular operation %")
 	OnlineSchedulingEmailCCAdvisors("unitime.enrollment.email.%.ccAdvisors"),
 	
+	@Type(String.class)
+	@Description("Online Student Scheduling: do not send student email notification if failed error code matches this parameter")
+	OnlineSchedulingEmailSkipOnErrorCodes("unitime.enrollment.email.skipOnErrorCodes"),
+	
+	@Type(String.class)
+	@Description("Online Student Scheduling: do not send student email notification if failed error message matches this parameter")
+	OnlineSchedulingEmailSkipOnErrorMessage("unitime.enrollment.email.skipOnErrorMessage"),
+	
 	@Type(Boolean.class)
 	@DefaultValue("false")
 	@Description("Online Student Scheduling: check for gradable itypes when checking on which subpart course credit information should be shown")
@@ -1046,7 +1056,7 @@ public enum ApplicationProperty {
 	ExaminationTravelTimeCourse("tmtbl.exam.eventConflicts.travelTime.courseEvent"),
 
 	@Type(Boolean.class)
-	@Description("Examinations: use class / course limits to compute examination size instead of the actual enrollment (defaults to false, except of final exams where it is true)")
+	@Description("Examinations: use class / course limits to compute examination size instead of the actual enrollment (defaults to false for final exams and true to midterm exams)")
 	@Parameter("examination type")
 	ExaminationSizeUseLimitInsteadOfEnrollment("tmtbl.exam.useLimit.%"),
 
@@ -1351,6 +1361,16 @@ public enum ApplicationProperty {
 	@DefaultValue("true")
 	@Description("Event Filter: do not count conflicting events (faster load, especially on MySQL)")
 	EventFilterSkipConflictCounts("unitime.events.eventFilter.skipConflictCounts"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("Event Filter: do not count most of the items (faster load, but less interactive behaviour)")
+	EventFilterSkipMostCounts("unitime.events.eventFilter.skipCounts"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("Room Filter: faster computation of the filter items (experimental)")
+	RoomFilterFasterCounts("unitime.events.roomFilter.fasterCounts"),
 
 	@Type(Boolean.class)
 	@DefaultValue("true")
@@ -1410,6 +1430,11 @@ public enum ApplicationProperty {
 	@DefaultValue("false")
 	@Description("Events: expected attendance must be set when creating a new event")
 	EventExpectedAttendanceRequired("unitime.events.expectedAttendanceRequired"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("true")
+	@Description("Events Personal Schedule: check for events with matching additional email")
+	EventPersonalConsiderAdditionalEmails("unitime.events.personal.considerAdditionalEmails"),
 
 	@Type(Class.class)
 	@Implements(Email.class)
@@ -2135,42 +2160,42 @@ public enum ApplicationProperty {
 	@Description("Help: FAQ page")
 	HelpFAQ("tmtbl.help.faq"),
 
-	@DefaultValue("https://docs.google.com/document/d/1bDzKBMEKOFYN_aBwzA6E4PAsBOGV7Tx-A3i_kuMae6U")
+	@DefaultValue("https://help.unitime.org/manuals/events")
 	@Description("Manuals: event management manual")
 	ManualEvents("tmtbl.help.manual.events"),
 	
-	@DefaultValue("https://docs.google.com/document/d/1Aye5LrLiAcTBR7aNOJO6laYg7-eEDlkfd5s0EW3jFZ4")
+	@DefaultValue("https://help.unitime.org/manuals/event-administration")
 	@Description("Manuals: event administration manual")
 	ManualEventsAdmin("tmtbl.help.manual.events_admin"),
 
-	@DefaultValue("https://docs.google.com/document/d/1rjS_6ebwegSTcN5Iw57qui5CHG8_6TWnk8MCwBwAt58")
+	@DefaultValue("https://help.unitime.org/manuals/courses-entry")
 	@Description("Manuals: course timetabling data entry manual")
 	ManualCourseDataEntry("tmtbl.help.manual.input_data"),
 
-	@DefaultValue("https://docs.google.com/document/d/1NZmKnmrjM2Tqg7dO18cWcMIe_GrtilQtKw6d1WGWBtY")
+	@DefaultValue("https://help.unitime.org/manuals/courses-solver")
 	@Description("Manuals: course timetabling solver manual")
 	ManualCourseSolver("tmtbl.help.manual.solver"),
 	
-	@DefaultValue("https://docs.google.com/document/d/1JksFtB9ecIoKpuyY0SDdl3dKnATe8UQAPKlGfBWi2JU")
+	@DefaultValue("https://help.unitime.org/manuals/instructor-scheduling")
 	@Description("Manuals: instructor scheduling manual")
 	ManualInstructorScheduling("tmtbl.help.manual.instructorScheduling"),
 	
-	@DefaultValue("https://docs.google.com/document/d/1iuj9NwrqkiVeJvKn1Sd41qqaVEJGwO79y1KZo1mtwuw")
+	@DefaultValue("https://help.unitime.org/manuals/administration")
 	@Description("Manuals: administrative user manual")
 	ManualAdministration("tmtbl.help.manual.administration"),
 	
-	@DefaultValue("https://docs.google.com/document/d/1OoCI2GZ7-2R_HSuW7slNfN9sp-_guHxRCJaB2asOH7Y")
+	@DefaultValue("https://help.unitime.org/documentation")
 	@Description("Manuals: other UniTime documentation")
 	ManualOtherDocumentation("tmtbl.help.manual.other"),
 	
-	@DefaultValue("https://docs.google.com/document/d/1QTCKwLhU62yGtr6XlW_XM68q3hgohxLpwWXdyajr30g")
+	@DefaultValue("https://help.unitime.org/manuals/scheduling-assistant")
 	@Description("Manuals: Student Scheduling Asisstant user manual")
 	ManualSchedulingAssistant("tmtbl.help.manual.schedulingAssistant"),
 	
 	@Description("Manuals: Student Course Requests user manual")
 	ManualCourseRequests("tmtbl.help.manual.courseRequests"),
 	
-	@DefaultValue("https://docs.google.com/document/d/1ap13URaw7UVT0FN9NZtgSROEKoS-V7S1uq0214Sh43M")
+	@DefaultValue("https://help.unitime.org/manuals/scheduling-dashboard")
 	@Description("Manuals: Student Scheduling Dashboard user manual")
 	ManualSchedulinDashboard("tmtbl.help.manual.schedulingDashboard"),
 
@@ -2420,8 +2445,18 @@ public enum ApplicationProperty {
 	
 	@Type(String.class)
 	@DefaultValue("org/unitime/timetable/onlinesectioning/updates/StudentEmail.ftl")
-	@Description("Online Student Scheduling: confirmation email template")
+	@Description("Online Student Scheduling: confirmation email template in HTML format")
 	OnlineSchedulingEmailTemplate("unitime.enrollment.email.teplate"),
+	
+	@Type(String.class)
+	@DefaultValue("org/unitime/timetable/onlinesectioning/updates/StudentEmail-txt.ftl")
+	@Description("Online Student Scheduling: confirmation email template in plain text")
+	OnlineSchedulingEmailPlainTextTemplate("unitime.enrollment.email.plainTextTemplate"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("Online Student Scheduling: sent student confirmation emails in plain text")
+	OnlineSchedulingEmailPlainText("unitime.enrollment.email.plainText"),
 	
 	@Type(Boolean.class)
 	@DefaultValue("true")
@@ -2711,6 +2746,12 @@ public enum ApplicationProperty {
 	@DefaultValue("false")
 	@Description("Time Grid: display class filter")
 	TimeGridClassFilter("unitime.timeGrid.classFilter"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("Time Grid: display room filter")
+	@Since(4.8)
+	TimeGridRoomFilter("unitime.timeGrid.roomFilter"),
 	
 	@Type(Boolean.class)
 	@DefaultValue("false")
@@ -3088,6 +3129,24 @@ public enum ApplicationProperty {
 	LegacyCourseEdit("unitime.legacy.course_edit"),
 	
 	@Type(Boolean.class)
+	@Since(4.8)
+	@DefaultValue("false")
+	@Description("Multiple Class Setup: switch the user interface back to the old (Struts-based) class setup page")
+	LegacyClassSetup("unitime.legacy.course.multiple_class_setup"),
+
+	@Type(Boolean.class)
+	@Since(4.8)
+	@DefaultValue("false")
+	@Description("Instructional Offering Config: switch the user interface back to the old (Struts-based) offering configuration page")
+	LegacyInstrOfferingConfig("unitime.legacy.course.instr_offering_config"),
+
+	@Type(Boolean.class)
+	@Since(4.8)
+	@DefaultValue("false")
+	@Description("Multiple Class Setup & Instructional Offering Config: when set to true, clear out all prefrences when a managing department is updated (except of time preferences which can be weakened)")
+	ClearPreferencesWhenManagingDepartmentIsChanged("unitime.legacy.course.clear_preferences"),
+
+	@Type(Boolean.class)
 	@DefaultValue("false")
 	@Description("Departments: switch the user interface back to the old (Struts-based) departments pages")
 	LegacyDepartments("unitime.legacy.admin.departments"),
@@ -3403,7 +3462,155 @@ public enum ApplicationProperty {
 	@Description("Solver Configuration: Reference of the default instructor scheduling configuration (Instructor Scheduling Solver page)")
 	@Since(4.8)
 	SolverConfigDefaultInstrSchd("unitime.solverConfig.defaultInstrSchd"),
+	
+	@Type(Integer.class)
+	@Description("Student Scheduling Assistant Access Control: Maximal number of users using the page at the same time (not set or zero for disabled).")
+	@Since(4.8)
+	AccessControlActiveMaxActiveUsersSectioning("unitime.accessControl.sectioning.maxActiveUsers"),
+	
+	@Type(Integer.class)
+	@DefaultValue("15")
+	@Description("Student Scheduling Assistant Access Control: Number of minutes of inactivity for the user to get the Inactive Warning.")
+	@Since(4.8)
+	AccessControlLimitInSecondsSectioning("unitime.accessControl.sectioning.activeLimitInMinutes"),
+	
+	@Type(Integer.class)
+	@Description("Student Course Requests Access Control: Maximal number of users using the page at the same time (not set or zero for disabled).")
+	@Since(4.8)
+	AccessControlActiveMaxActiveUsersRequests("unitime.accessControl.requests.maxActiveUsers"),
+	
+	@Type(Integer.class)
+	@DefaultValue("15")
+	@Description("Student Course Requests Access Control: Number of minutes of inactivity for the user to get the Inactive Warning.")
+	@Since(4.8)
+	AccessControlLimitInSecondsRequests("unitime.accessControl.requests.activeLimitInMinutes"),
+	
+	@Type(Integer.class)
+	@Description("Access Control for %: Maximal number of users using the page at the same time (not set or zero for disabled).")
+	@Parameter("sectioning for Scheduling Assitant, requests for Course Requests")
+	@Since(4.8)
+	AccessControlMaxActiveUsers("unitime.accessControl.%.maxActiveUsers"),
+	
+	@Type(Integer.class)
+	@DefaultValue("15")
+	@Description("Access Control for %: Number of minutes of inactivity for the user to get the Inactive Warning.")
+	@Parameter("sectioning for Scheduling Assitant, requests for Course Requests")
+	@Since(4.8)
+	AccessControlActiveLimitInMinutes("unitime.accessControl.%.activeLimitInMinutes"),
+	
+	@Type(Integer.class)
+	@DefaultValue("92")
+	@Description("Configuration: automatically remove access control statistics after the given number of days")
+	@Since(4.8)
+	LogCleanupAccessStatistics("unitime.cleanup.accessControlStatistics"),
 
+	@Description("OAuht2 Authentication: user external id attribute, if not set uid translation will take place instead")
+	@DefaultValue("email")
+	@Since(4.8)
+	AuthenticationOAuht2IdAttribute("unitime.authentication.oauth2.id-attribute"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("OAuht2 Authentication: always translate the id-attribute using the provided external user id translation class (see tmtbl.externalUid.translation property)")
+	@Since(4.8)
+	AuthenticationOAuht2IdAlwaysTranslate("unitime.authentication.oauth2.id-translate"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("OAuht2 Authentication: trim leading zeros from the user external id")
+	@Since(4.8)
+	AuthenticationOAuht2IdTrimLeadingZerosFrom("unitime.authentication.oauth2.id-trim"),
+	
+	@Description("OAuht2 Authentication: user full name attribute")
+	@DefaultValue("name")
+	@Since(4.8)
+	AuthenticationOAuht2NameAttribute("unitime.authentication.oauth2.name-attribute"),
+	
+	@Description("OAuht2 Authentication: client registration id")
+	@DefaultValue("google")
+	@Since(4.8)
+	@Values({"google", "facebook", "github", "okta", "azure"})
+	AuthenticationOAuht2Provider("unitime.authentication.oauth2.provider"),
+	
+	@Description("OAuht2 Authentication: client registration id")
+	@Since(4.8)
+	@Secret
+	AuthenticationOAuht2ClientId("unitime.authentication.oauth2.client-id"),
+	
+	@Description("OAuht2 Authentication: client secret")
+	@Since(4.8)
+	@Secret
+	AuthenticationOAuht2ClientSecret("unitime.authentication.oauth2.client-secret"),
+	
+	@Description("OAuht2 Authentication: scope")
+	@DefaultValue("email,profile")
+	@Since(4.8)
+	AuthenticationOAuht2Scope("unitime.authentication.oauth2.scope"),
+	
+	@Description("OAuht2 Authentication: login message")
+	@DefaultValue("Log in using Google.")
+	@Since(4.8)
+	AuthenticationOAuht2LoginMessage("unitime.authentication.oauth2.login-message"),
+	
+	@Description("OAuht2 Authentication: tenant id (Azure AD only)")
+	@Since(4.8)
+	AuthenticationOAuht2TenantId("unitime.authentication.oauth2.tenant-id"),
+	
+	@Description("OAuht2 Authentication: URI to query for additional attributes")
+	@Since(4.8)
+	AuthenticationOAuht2AdditionalAttributes("unitime.authentication.oauth2.queryAttributes"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("Room Edit: prefetch room relations when loading room details/edit page to make the page load faster (disable when having issues with room groups or features not showing up on the edit page)")
+	RoomEditPrefetchRelations("unitime.rooms.prefetchRelations"),
+	
+	@Description("Rooms: custom room URL provider (class implementing the RoomUrlProvider interface)")
+	@DefaultValue("org.unitime.timetable.util.DefaultRoomUrlProvider")
+	@Since(4.8)
+	CustomRoomUrlProvider("unitime.rooms.url.provider"),
+	
+	@Description("Room URL: room URL when the default room URL provider is used\n"
+			+ "Use:\n"
+			+ " - :building for building abbreviation and :roomNbr for room number,\n"
+			+ " - :name for the room name,\n"
+			+ " - :roomId and :buildingId for the room and building external ids,\n"
+			+ " - :campus, :term, :year for academic session identification or\n"
+			+ " - :xcampus, :xterm when ExternalTermProvider is configured,\n"
+			+ "Example: https://www.university.edu/inventory?location=:building+:roomNbr")
+	@Since(4.8)
+	DefaultRoomUrlRoom("unitime.rooms.url.room"),
+
+	@Description("Room URL: non-university location URL when the default room URL provider is used\n"
+			+ "Use:\n"
+			+ " - :name for the location name,\n"
+			+ " - :id the location external id,\n"
+			+ " - :campus, :term, :year for academic session identification or\n"
+			+ " - :xcampus, :xterm when ExternalTermProvider is configured,\n"
+			+ "Example: https://www.university.edu/inventory?location=:name")
+	@Since(4.8)
+	DefaultRoomUrlLoncation("unitime.rooms.url.location"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("Edit Class/Scheduling Subpart: enable searcheable date pattern")
+	ClassEditSearcheableDatePattern("unitime.classEdit.searchableDatePattern"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("Student Scheduling Dashboard: do not count advised students (faster load, especially on MySQL)")
+	StudentSchedulingFilterSkipAdvisedCounts("unitime.enrollment.studentFiler.skipAdvisedCounts"),
+	
+	@Type(Boolean.class)
+	@DefaultValue("false")
+	@Description("Student Scheduling Available Sessions: prefer sessions with matching student campus (in the order they are displayed)")
+	@Since(4.8)
+	StudentSchedulingPreferStudentCampus("unitime.studentScheduling.preferSessionsWithMatchingCampus"),
+	
+	@Type(Boolean.class)
+	@Description("Student Scheduling Available Sessions: preferred student camus (defaults to academic session initiative); can contain a regular expression in which case student campus is matched to the provided value")
+	@Since(4.8)
+	StudentSchedulingPreferredCampus("unitime.studentScheduling.preferredStudentCampus"),
 	;
 
 	String iKey;

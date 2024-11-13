@@ -20,9 +20,10 @@
 package org.unitime.timetable.solver.course.weights;
 
 import org.cpsolver.coursett.model.Lecture;
+import org.unitime.timetable.model.Class_;
 
 public interface ClassWeightProvider {
 	
-	public double getWeight(Lecture lecture);
+	public double getWeight(Lecture lecture, Class_ clazz);
 
 }

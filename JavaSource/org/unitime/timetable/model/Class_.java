@@ -323,7 +323,7 @@ public class Class_ extends BaseClass_ {
     			Preference p1 = null;
     			for (Iterator<Preference> j=ret.iterator();j.hasNext();) {
     				Preference p = j.next();
-    				if (p.isSame(p2)) {
+    				if (p.isSame(p2, this)) {
     					p1 = p; j.remove(); break;
     				}
     			}
@@ -369,7 +369,7 @@ public class Class_ extends BaseClass_ {
 			Preference subpartPref = null;
 			for (Iterator j=ret.iterator();j.hasNext();) {
 				Preference p = (Preference)j.next();
-				if (p.isSame(instrPref)) {
+				if (p.isSame(instrPref, this)) {
 					subpartPref = p; j.remove(); break;
 				}
 			}
@@ -398,7 +398,7 @@ public class Class_ extends BaseClass_ {
 			Preference classPref = null;
 			for (Iterator j=classPrefs.iterator();j.hasNext();) {
 				Preference p = (Preference)j.next();
-				if (p.isSame(combPref)) {
+				if (p.isSame(combPref, this)) {
 					classPref = p; break;
 				}
 			}
@@ -679,9 +679,9 @@ public class Class_ extends BaseClass_ {
         	DurationModel dm = getSchedulingSubpart().getInstrOfferingConfig().getDurationModel();
 			Integer ah = dm.getArrangedHours(getSchedulingSubpart().getMinutesPerWk(), effectiveDatePattern());
             if (ah == null) {
-                sb.append("<span title='Arrange Hours'>Arr Hrs</span>");
+                sb.append("<span title='" + MSG.arrangeHours() + "'>" + MSG.arrHrs() + "</span>");
             } else {
-                sb.append("<span title='Arrange "+ah+" Hours'>Arr "+ah+" Hrs</span>");
+                sb.append("<span title='" + MSG.arrangeHoursN(ah) + "'>" + MSG.arrHrsN(ah) + "</span>");
             }
         }
 		return(sb.toString());
@@ -1204,7 +1204,6 @@ public class Class_ extends BaseClass_ {
 				InstructionalOffering offering = tr.getOffering();
 				offering.getTeachingRequests().remove(tr);
 				hibSession.remove(tr);
-				hibSession.merge(offering);
 			} else {
 				hibSession.merge(tr);
 			}
@@ -1217,7 +1216,19 @@ public class Class_ extends BaseClass_ {
 	 * @param hibSession
 	 */
 	public void deleteAssignments(org.hibernate.Session hibSession) {
-		Set s = getAssignments();
+		Set<Assignment> s = getAssignments();
+        // Remove all related constraint infos to avoid hibernate cache issues 
+        // when an orphaned constraint info is automatically deleted
+		for (Assignment ass: s) {
+            for (ConstraintInfo ci: ass.getConstraintInfo()) {
+            	for (Assignment a: ci.getAssignments()) {
+            		if (!a.equals(ass)) {
+            			a.getConstraintInfo().remove(ci);
+            		}
+            	}
+            	hibSession.remove(ci);
+            }
+		}
 		deleteObjectsFromCollection(hibSession, s);
 	}
 
@@ -1258,7 +1269,7 @@ public class Class_ extends BaseClass_ {
 		newClass.setSchedulePrintNote(getSchedulePrintNote());
 		newClass.setSchedulingSubpart(getSchedulingSubpart());
 		newClass.setCancelled(isCancelled());
-		newClass.setLms(getLms());
+		newClass.setLmsInfo(getLmsInfo());
 		newClass.setFundingDept(getFundingDept());
 		return(newClass);
 	}
@@ -1535,7 +1546,8 @@ public class Class_ extends BaseClass_ {
 			a.cleastAssignmentInfoCache();
             
             ClassEvent event = getEvent();
-            event = a.generateCommittedEvent(event, true);
+            EventDateMapping.Class2EventDateMap class2eventDates = EventDateMapping.getMapping(getSession().getUniqueId());
+            event = a.generateCommittedEvent(event, true, class2eventDates);
             if (event != null && !event.getMeetings().isEmpty()) {
     			if (event.getNotes() == null)
     				event.setNotes(new HashSet<EventNote>());
@@ -1624,9 +1636,9 @@ public class Class_ extends BaseClass_ {
 				DurationModel dm = getSchedulingSubpart().getInstrOfferingConfig().getDurationModel();
 				Integer ah = dm.getArrangedHours(getSchedulingSubpart().getMinutesPerWk(), effectiveDatePattern());
 	            if (ah == null) {
-	                sb.append("Arr Hrs");
+	                sb.append(MSG.arrHrs());
 	            } else {
-	                sb.append("Arr "+ah+" Hrs");
+	                sb.append(MSG.arrHrsN(ah));
 	            }	
 			}
 		}
@@ -1634,6 +1646,18 @@ public class Class_ extends BaseClass_ {
 			sb.append(" ");
 		}
 	    return(sb.toString());
+	}
+    
+    public String buildAssignedDateHtml(ClassAssignmentProxy proxy){
+    	ClassAssignmentProxy.AssignmentInfo a = null;
+		try {
+			a = proxy.getAssignment(this);
+		} catch (Exception e) {
+			Debug.error(e);
+		}
+		if (a != null && a.getTimeLocation() != null && a.getTimeLocation().getDatePatternName() != null)
+			return a.getTimeLocation().getDatePatternName();
+		return " ";
 	}
 
 	public String buildAssignedRoomHtml(ClassAssignmentProxy proxy){
@@ -1946,6 +1970,19 @@ public class Class_ extends BaseClass_ {
 		} else {
 			return getFundingDept();
 		}
+	}
+	
+	public boolean hasRoomIndexedPrefs() {
+		if (getNbrRooms() <= 1) return false;
+		for (RoomPref p: effectivePreferences(RoomPref.class))
+			if (p.getRoomIndex() != null && p.getRoomIndex() < getNbrRooms()) return true;
+		for (BuildingPref p: effectivePreferences(BuildingPref.class))
+			if (p.getRoomIndex() != null && p.getRoomIndex() < getNbrRooms()) return true;
+		for (RoomFeaturePref p: effectivePreferences(RoomFeaturePref.class))
+			if (p.getRoomIndex() != null && p.getRoomIndex() < getNbrRooms()) return true;
+		for (RoomGroupPref p: effectivePreferences(RoomGroupPref.class))
+			if (p.getRoomIndex() != null && p.getRoomIndex() < getNbrRooms()) return true;
+		return false;
 	}
 
 }

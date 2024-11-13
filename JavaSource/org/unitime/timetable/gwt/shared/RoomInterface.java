@@ -453,6 +453,7 @@ public class RoomInterface implements IsSerializable {
 		private String iEventDepartment = null;
 		private String iNote = null;
 		private boolean iIgnoreRoomCheck = false;
+		private String iUrl = null;
 
 		private List<FeatureInterface> iFeatures = null;
 		private List<RoomPictureInterface> iPictures = null;
@@ -579,6 +580,10 @@ public class RoomInterface implements IsSerializable {
 			}
 			return ret;
 		}
+		
+		public String getUrl() { return iUrl; }
+		public boolean hasUrl() { return iUrl != null && !iUrl.isEmpty(); }
+		public void setUrl(String url) { iUrl = url; }
 	}
 	
 	public static class RoomHintRequest implements GwtRpcRequest<RoomHintResponse> {
@@ -1255,6 +1260,8 @@ public class RoomInterface implements IsSerializable {
 		private String iSessionName = null;
 		private Set<EventServiceProviderInterface> iServices = null;
 		private RoomDetailInterface iParent = null;
+		private String iDefaultEventEmail = null, iEventEmail = null;
+		private String iUrl;
 		
 		public RoomDetailInterface() {}
 		
@@ -1613,6 +1620,18 @@ public class RoomInterface implements IsSerializable {
 		public RoomDetailInterface getParent() { return iParent; }
 		public boolean hasParent() { return iParent != null; }
 		public void setParent(RoomDetailInterface parent) { iParent = parent; }
+		
+		public String getDefaultEventEmail() { return iDefaultEventEmail; }
+		public boolean hasDefaultEventEmail() { return iDefaultEventEmail != null && !iDefaultEventEmail.isEmpty(); }
+		public void setDefaultEventEmail(String eventEmail) { iDefaultEventEmail = eventEmail; }
+
+		public String getEventEmail() { return iEventEmail; }
+		public boolean hasEventEmail() { return iEventEmail != null && !iEventEmail.isEmpty(); }
+		public void setEventEmail(String eventEmail) { iEventEmail = eventEmail; }
+		
+		public String getUrl() { return iUrl; }
+		public boolean hasUrl() { return iUrl != null && !iUrl.isEmpty(); }
+		public void setUrl(String url) { iUrl = url; }
 	}
 	
 	public static class RoomDetailsRequest implements GwtRpcRequest<GwtRpcResponseList<RoomDetailInterface>> {
@@ -2325,6 +2344,7 @@ public class RoomInterface implements IsSerializable {
 		EVENT_STATUS,
 		EVENT_AVAILABILITY,
 		EVENT_MESSAGE,
+		EVENT_EMAIL,
 		BREAK_TIME,
 		SERVICES,
 		GROUPS,
@@ -2356,7 +2376,7 @@ public class RoomInterface implements IsSerializable {
 		COURSES("q=department:Managed", RoomsColumn.NAME, RoomsColumn.TYPE, RoomsColumn.CAPACITY, RoomsColumn.AREA, RoomsColumn.AVAILABILITY, RoomsColumn.DEPARTMENTS, RoomsColumn.FEATURES, RoomsColumn.GROUPS),
 		EXAMS("q=department:Managed", RoomsColumn.NAME, RoomsColumn.TYPE, RoomsColumn.CAPACITY, RoomsColumn.EXAM_CAPACITY, RoomsColumn.AREA, RoomsColumn.EXAM_TYPES, RoomsColumn.PERIOD_PREF, RoomsColumn.FEATURES, RoomsColumn.GROUPS),
 		EVENTS("q=flag:Event+department:Managed", true, RoomsColumn.NAME, RoomsColumn.TYPE, RoomsColumn.CAPACITY, RoomsColumn.AREA, RoomsColumn.EVENT_DEPARTMENT, RoomsColumn.EVENT_AVAILABILITY,
-				RoomsColumn.EVENT_STATUS, RoomsColumn.EVENT_MESSAGE, RoomsColumn.BREAK_TIME, RoomsColumn.FEATURES, RoomsColumn.GROUPS), 
+				RoomsColumn.EVENT_STATUS, RoomsColumn.EVENT_MESSAGE, RoomsColumn.EVENT_EMAIL, RoomsColumn.BREAK_TIME, RoomsColumn.FEATURES, RoomsColumn.GROUPS), 
 		;
 		
 		private String iQuery;

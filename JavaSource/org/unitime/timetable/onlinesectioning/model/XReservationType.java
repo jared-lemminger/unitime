@@ -36,5 +36,6 @@ public enum XReservationType implements Serializable {
 	LearningCommunity,
 	CurriculumOverride,
 	IndividualGroup,
+	Universal,
 	;
 }

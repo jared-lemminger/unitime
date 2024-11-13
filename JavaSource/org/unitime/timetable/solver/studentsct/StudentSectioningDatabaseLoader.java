@@ -73,6 +73,7 @@ import org.cpsolver.studentsct.model.Student;
 import org.cpsolver.studentsct.model.Subpart;
 import org.cpsolver.studentsct.model.Unavailability;
 import org.cpsolver.studentsct.model.Request.RequestPriority;
+import org.cpsolver.studentsct.model.Student.ModalityPreference;
 import org.cpsolver.studentsct.model.Student.StudentPriority;
 import org.cpsolver.studentsct.reservation.CourseReservation;
 import org.cpsolver.studentsct.reservation.CurriculumOverride;
@@ -84,6 +85,7 @@ import org.cpsolver.studentsct.reservation.IndividualRestriction;
 import org.cpsolver.studentsct.reservation.Reservation;
 import org.cpsolver.studentsct.reservation.ReservationOverride;
 import org.cpsolver.studentsct.reservation.Restriction;
+import org.cpsolver.studentsct.reservation.UniversalOverride;
 import org.hibernate.CacheMode;
 import org.hibernate.FlushMode;
 import org.hibernate.Transaction;
@@ -95,6 +97,7 @@ import org.unitime.timetable.gwt.server.DayCode;
 import org.unitime.timetable.gwt.server.Query;
 import org.unitime.timetable.gwt.server.Query.TermMatcher;
 import org.unitime.timetable.gwt.shared.ReservationInterface.OverrideType;
+import org.unitime.timetable.interfaces.ExternalClassNameHelperInterface.HasGradableSubpart;
 import org.unitime.timetable.model.AcademicArea;
 import org.unitime.timetable.model.AcademicClassification;
 import org.unitime.timetable.model.Advisor;
@@ -148,10 +151,13 @@ import org.unitime.timetable.model.TeachingResponsibility;
 import org.unitime.timetable.model.TimePatternModel;
 import org.unitime.timetable.model.TimePref;
 import org.unitime.timetable.model.TravelTime;
+import org.unitime.timetable.model.UniversalOverrideReservation;
 import org.unitime.timetable.model.comparators.ClassComparator;
+import org.unitime.timetable.model.comparators.ClassCourseComparator;
 import org.unitime.timetable.model.comparators.SchedulingSubpartComparator;
 import org.unitime.timetable.model.dao.SessionDAO;
 import org.unitime.timetable.model.dao.StudentDAO;
+import org.unitime.timetable.onlinesectioning.AcademicSessionInfo;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningHelper;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningLog;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningLogger;
@@ -174,6 +180,7 @@ import org.unitime.timetable.solver.curricula.StudentCourseDemands.Group;
 import org.unitime.timetable.solver.curricula.StudentCourseDemands.WeightedStudentId;
 import org.unitime.timetable.util.Constants;
 import org.unitime.timetable.util.DateUtils;
+import org.unitime.timetable.util.DefaultExternalClassNameHelper;
 import org.unitime.timetable.util.Formats;
 import org.unitime.timetable.util.NameFormat;
 import org.unitime.timetable.util.duration.DurationModel;
@@ -211,6 +218,8 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
 	private boolean iLinkedClassesMustBeUsed = false;
 	private boolean iAllowDefaultCourseAlternatives = false;
 	private boolean iIncludeUnavailabilities = true;
+	private boolean iIncludeUnavailabilitiesFromOtherSessions = true;
+	private boolean iDecreaseCreditLimitsByOtherSessionEnrollments = false;
 	private String iShortDistanceAccomodationReference = null;
 	private boolean iCheckOverrideStatus = false, iValidateOverrides = false;
 	private CourseRequestsValidationProvider iValidationProvider = null;
@@ -232,6 +241,8 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
 	private Query iProjectedStudentQuery = null;
 	private RequestPriority iLCRequestPriority = null;
 	private Map<Long, Set<Long>> iLCDemands = new HashMap<Long, Set<Long>>();
+	private org.cpsolver.ifs.util.Query iVisitingStudentsQuery = null;
+	private boolean iVisitingFaceToFaceCheckFirstChoiceOnly = false;
     
     private Progress iProgress = null;
     
@@ -294,6 +305,8 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         iLinkedClassesMustBeUsed = model.getProperties().getPropertyBoolean("LinkedClasses.mustBeUsed", false);
         iAllowDefaultCourseAlternatives = ApplicationProperty.StudentSchedulingAlternativeCourse.isTrue();
         iIncludeUnavailabilities = model.getProperties().getPropertyBoolean("Load.IncludeUnavailabilities", iIncludeUnavailabilities);
+        iIncludeUnavailabilitiesFromOtherSessions = model.getProperties().getPropertyBoolean("Load.IncludeUnavailabilitiesFromOtherSessions", iIncludeUnavailabilitiesFromOtherSessions);
+        iDecreaseCreditLimitsByOtherSessionEnrollments = model.getProperties().getPropertyBoolean("Load.DecreaseCreditLimitsByOtherSessionEnrollments", iDecreaseCreditLimitsByOtherSessionEnrollments);
         iShortDistanceAccomodationReference = model.getProperties().getProperty("Distances.ShortDistanceAccommodationReference", "SD");
         for (StudentPriority priority: StudentPriority.values()) {
         	if (priority == StudentPriority.Normal) break;
@@ -310,6 +323,12 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
             }
         }
         
+        String visitingStudentsQuery = model.getProperties().getProperty("Load.VisitingStudentFilter", null);
+        if (visitingStudentsQuery != null && !visitingStudentsQuery.isEmpty()) {
+        	iVisitingStudentsQuery = new org.cpsolver.ifs.util.Query(visitingStudentsQuery);
+        }
+        iVisitingFaceToFaceCheckFirstChoiceOnly = model.getProperties().getPropertyBoolean("Load.VisitingFaceToFaceCheckFirstChoiceOnly", false);
+        		
         iCheckOverrideStatus = model.getProperties().getPropertyBoolean("Load.CheckOverrideStatus", iCheckOverrideStatus);
         iValidateOverrides = model.getProperties().getPropertyBoolean("Load.ValidateOverrides", iValidateOverrides);
         if ((iValidateOverrides || iCheckOverrideStatus) && ApplicationProperty.CustomizationCourseRequestsValidation.value() != null) {
@@ -528,7 +547,7 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         return ret;
     }
     
-    public TimeLocation makeupTime(Class_ c) {
+    public TimeLocation makeupTime(Class_ c, int shiftDays) {
         DatePattern datePattern = c.effectiveDatePattern(); 
         if (datePattern==null) {
             iProgress.warn("        -- makup time for "+c.getClassLabel(iShowClassSuffix, iShowConfigName)+": no date pattern set");
@@ -556,7 +575,7 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
                                 pattern.getNormalizedPreference(day,time,0.77),
                                 datePattern.getUniqueId(),
                                 datePattern.getName(),
-                                datePattern.getPatternBitSet(),
+                                (shiftDays == 0 ? datePattern.getPatternBitSet() : Assignment.shift(datePattern.getPatternBitSet(), shiftDays)),
                                 pattern.getBreakTime());
                         }
                     }
@@ -594,8 +613,8 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         return rooms;
     }
     
-    public Placement makeupPlacement(Class_ c) {
-        TimeLocation time = makeupTime(c);
+    public Placement makeupPlacement(Class_ c, int shiftDays) {
+        TimeLocation time = makeupTime(c, shiftDays);
         if (time==null) return null;
         Vector rooms = makeupRooms(c);
         Vector times = new Vector(1); times.addElement(time);
@@ -807,7 +826,7 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
     		Assignment a = clazz.getCommittedAssignment();
             Placement p = null;
             if (iMakeupAssignmentsFromRequiredPrefs) {
-                p = makeupPlacement(clazz);
+                p = makeupPlacement(clazz, 0);
             } else if (a != null) {
                 p = a.getPlacement();
             }
@@ -820,7 +839,7 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         return classLimit;
     }
     
-    private Offering loadOffering(InstructionalOffering io, Hashtable<Long, Course> courseTable, Hashtable<Long, Section> classTable) {
+    private Offering loadOffering(InstructionalOffering io, Hashtable<Long, Course> courseTable, Hashtable<Long, Section> classTable, int shiftDays) {
     	if (io.getInstrOfferingConfigs().isEmpty()) {
     		return null;
     	}
@@ -874,9 +893,9 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
                     Assignment a = c.getCommittedAssignment();
                     Placement p = null;
                     if (iMakeupAssignmentsFromRequiredPrefs) {
-                        p = makeupPlacement(c);
+                        p = makeupPlacement(c, shiftDays);
                     } else if (a != null) {
-                        p = a.getPlacement();
+                        p = a.getPlacement(shiftDays);
                     }
                     if (p != null && p.getTimeLocation() != null) {
                     	p.getTimeLocation().setDatePattern(
@@ -1112,6 +1131,13 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
             		r.setCanAssignOverLimit(ApplicationProperty.ReservationCanOverLimitCourse.isTrue());
             		r.setMustBeUsed(ApplicationProperty.ReservationMustBeUsedCourse.isTrue());
         		}
+        	} else if (reservation instanceof UniversalOverrideReservation) {
+        		r = new UniversalOverride(reservation.getUniqueId(), reservation.isAlwaysExpired(), (reservation.getLimit() == null ? -1.0 : reservation.getLimit()), offering, ((UniversalOverrideReservation)reservation).getFilter());
+        		r.setPriority(reservation.getPriority());
+        		r.setMustBeUsed(reservation.isMustBeUsed());
+        		r.setAllowOverlap(reservation.isAllowOverlap());
+        		r.setCanAssignOverLimit(reservation.isCanAssignOverLimit());
+        		
         	}
         	if (r == null) {
         		iProgress.warn("Failed to load reservation " + reservation.getUniqueId() + "."); continue;
@@ -1233,6 +1259,9 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         							applicable = true; break;
         					}
         				}
+    			} else if (reservation instanceof UniversalOverride) {
+    				UniversalOverride u = (UniversalOverride)reservation;
+    				applicable = (u.getFilter() != null && !u.getFilter().isEmpty() && new Query(u.getFilter()).match(new DbStudentMatcher(s)));
     			}
     			if (!applicable) continue;
     			
@@ -1293,6 +1322,10 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
 					CurriculumReservation c = (CurriculumReservation)reservation;
 					if (c.getReservationLimit() >= 1.0)
 						c.setReservationLimit(c.getReservationLimit() - 1.0);
+				} else if (reservation instanceof UniversalOverride) {
+					UniversalOverride u = (UniversalOverride)reservation;
+					if (u.getReservationLimit() >= 1.0)
+						u.setReservationLimit(u.getReservationLimit() - 1.0);
 				}
     		}
     	}
@@ -1968,8 +2001,8 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
                		if (hasOverlap) reservation.setAllowOverlap(true);
     				if (hasDisabled) reservation.setAllowDisabled(hasDisabled);
     				if (hasMustUse) { reservation.setMustBeUsed(true); reservation.setExpired(false); }
-    				if (hasLinked) { reservation.setBreakLinkedSections(true); }
     				else { reservation.setExpired(true); }
+    				if (hasLinked) { reservation.setBreakLinkedSections(true); }
     				Set<String> props = new TreeSet<String>();
     				if (reservation.mustBeUsed()) props.add("mustBeUsed");
     				if (reservation.isAllowOverlap()) props.add("allowOverlap");
@@ -2079,7 +2112,7 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
 						RequestPriority p1 = r1.getRequestPriority();
 						RequestPriority p2 = r2.getRequestPriority();
 						if (p1 != p2) {
-							return (p1 == null ? RequestPriority.Normal : p1).compareTo(p2 == null ? RequestPriority.Normal : p2);
+							return (p1 == null ? RequestPriority.Normal : p1).compareCriticalsTo(p2 == null ? RequestPriority.Normal : p2);
 						}
 					}
 					if (iMoveFreeTimesDown) {
@@ -2294,6 +2327,7 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         			(acm.getConcentration() == null ? null : acm.getConcentration().getCode()), (acm.getConcentration() == null ? null : acm.getConcentration().getName()),
         			(acm.getDegree() == null ? null : acm.getDegree().getReference()), (acm.getDegree() == null ? null : acm.getDegree().getLabel()),
         			(acm.getProgram() == null ? null : acm.getProgram().getReference()), (acm.getProgram() == null ? null : acm.getProgram().getLabel()),
+        			(acm.getCampus() == null ? null : acm.getCampus().getReference()), (acm.getCampus() == null ? null : acm.getCampus().getLabel()),
         			acm.getWeight()));
         }
         for (StudentAreaClassificationMinor acm: s.getAreaClasfMinors()) {
@@ -2596,6 +2630,20 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
 		return ret;
 	}
 	
+	protected boolean isFaceToFace(CourseRequest r) {
+		if (iVisitingFaceToFaceCheckFirstChoiceOnly) {
+			Course firstChoice = r.getCourses().get(0);
+			for (Enrollment e: r.values(getAssignment()))
+				for (Section s: e.getSections())
+					if (!s.isOnline() && e.getCourse().equals(firstChoice)) return true;
+		} else {
+			for (Enrollment e: r.values(getAssignment()))
+				for (Section s: e.getSections())
+					if (!s.isOnline()) return true;
+		}
+		return false;
+	}
+	
     public void load(Session session, org.hibernate.Session hibSession) {
     	iFreeTimePattern = getFreeTimeBitSet(session);
 		iDatePatternFirstDate = getDatePatternFirstDay(session);
@@ -2616,7 +2664,7 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         setPhase("Loading course offerings...", offerings.size());
         for (InstructionalOffering io: offerings) {
         	incProgress();
-            Offering offering = loadOffering(io, courseTable, classTable);
+            Offering offering = loadOffering(io, courseTable, classTable, 0);
             if (offering!=null) getModel().addOffering(offering);
         }
         
@@ -2728,6 +2776,8 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
                 					((IndividualReservation)enrollment.getReservation()).getStudentIds().remove(student.getId());
                 				} else if (enrollment.getReservation() instanceof CurriculumReservation && enrollment.getReservation().getReservationLimit() >= 1.0) {
                 					((CurriculumReservation)enrollment.getReservation()).setReservationLimit(enrollment.getReservation().getReservationLimit() - 1.0);
+                				} else if (enrollment.getReservation() instanceof UniversalOverride && enrollment.getReservation().getReservationLimit() >= 1.0) {
+                					((UniversalOverride)enrollment.getReservation()).setReservationLimit(enrollment.getReservation().getReservationLimit() - 1.0);
                 				}
                 			}
                 		}
@@ -2766,7 +2816,8 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         									if (tcr.getTeachingClass().equals(ci.getClassInstructing())) {
         										canOverlap = tcr.isCanOverlap(); break;
         									}
-        							new Unavailability(student, section, canOverlap);
+        							Unavailability ua = new Unavailability(student, section, canOverlap);
+        							ua.setTeachingAssignment(true);
         						}
         			        }
         			        for (TeachingClassRequest tcr: clazz.getTeachingRequests()) {
@@ -2774,8 +2825,10 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         			            	for (DepartmentalInstructor di: tcr.getTeachingRequest().getAssignedInstructors()) {
         			            		if (di.getExternalUniqueId() == null || di.getExternalUniqueId().isEmpty()) continue;
         			            		Student student = ext2student.get(di.getExternalUniqueId());
-                						if (student != null)
-                							new Unavailability(student, section, tcr.isCanOverlap());
+                						if (student != null) {
+                							Unavailability ua = new Unavailability(student, section, tcr.isCanOverlap());
+                							ua.setTeachingAssignment(true);
+                						}
         			            	}
         			        	}
         			        }
@@ -2783,6 +2836,102 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         			}
         		}
         		
+        	}
+        }
+        
+        if (iIncludeUnavailabilitiesFromOtherSessions) {
+            List<StudentClassEnrollment> enrollments = new ArrayList<StudentClassEnrollment>(hibSession.createQuery(
+    				"select e2 " +
+    				"from Student s1 inner join s1.session z1, StudentClassEnrollment e2 inner join e2.student s2 inner join s2.session z2 " +
+    				"where s1.externalUniqueId is not null and z1.uniqueId = :sessionId and s1.externalUniqueId = s2.externalUniqueId and " +
+    				"e2.clazz.cancelled = false and e2.clazz.committedAssignment is not null and " +
+    				"z1 != z2 and z1.sessionBeginDateTime <= z2.classesEndDateTime and z2.sessionBeginDateTime <= z1.classesEndDateTime",
+    				StudentClassEnrollment.class).setParameter("sessionId", session.getUniqueId()).list());
+        	setPhase("Loading unavailabilities from other academic sessions...", enrollments.size());
+        	Collections.sort(enrollments, new Comparator<StudentClassEnrollment>() {
+        		ClassCourseComparator ccc = new ClassCourseComparator();
+				@Override
+				public int compare(StudentClassEnrollment e1, StudentClassEnrollment e2) {
+					int cmp = e1.getStudent().compareTo(e2.getStudent());
+					if (cmp != 0) return cmp;
+					return ccc.compareClasses(e1.getCourseOffering(), e2.getCourseOffering(), e1.getClazz(), e2.getClazz());
+				}
+			});
+        	for (StudentClassEnrollment enrollment: enrollments) {
+        		Student student = ext2student.get(enrollment.getStudent().getExternalUniqueId());
+        		if (student != null) {
+        			Section section = classTable.get(enrollment.getClazz().getUniqueId());
+        			if (section == null && !enrollment.getClazz().isCancelled() && enrollment.getClazz().getCommittedAssignment() != null) {
+    					int shiftDays = DateUtils.daysBetween(
+    							AcademicSessionInfo.getDatePatternFirstDay(session),
+    							AcademicSessionInfo.getDatePatternFirstDay(enrollment.getCourseOffering().getInstructionalOffering().getSession()));
+    					Offering offering = loadOffering(enrollment.getCourseOffering().getInstructionalOffering(), courseTable, classTable, shiftDays);
+    		            if (offering != null) {
+    		            	offering.setDummy(true);
+    		            	getModel().addOffering(offering);
+        					section = classTable.get(enrollment.getClazz().getUniqueId());
+        					if (section != null && !section.isCancelled() && section.getTime() != null) {
+        						Unavailability ua = new Unavailability(student, section, section.isAllowOverlap());
+        						ua.setTeachingAssignment(false);
+        						ua.setCourseId(enrollment.getCourseOffering().getUniqueId());
+        					}
+    		            }
+        			} else if (section != null && !section.isCancelled() && section.getTime() != null) {
+        				Unavailability ua = new Unavailability(student, section, section.isAllowOverlap());
+        				ua.setTeachingAssignment(false);
+						ua.setCourseId(enrollment.getCourseOffering().getUniqueId());
+        			}
+        		}
+        	}
+        }
+        
+        if (iDecreaseCreditLimitsByOtherSessionEnrollments) {
+        	List<StudentClassEnrollment> enrollments = new ArrayList<StudentClassEnrollment>(hibSession.createQuery(
+    				"select e2 " +
+    				"from Student s1 inner join s1.session z1, StudentClassEnrollment e2 inner join e2.student s2 inner join s2.session z2 " +
+    				"where s1.externalUniqueId is not null and z1.uniqueId = :sessionId and s1.externalUniqueId = s2.externalUniqueId and " +
+    				"e2.clazz.cancelled = false and " +
+    				"z1.academicTerm = z2.academicTerm and z1.academicYear = z2.academicYear and z2.academicInitiative != z1.academicInitiative",
+    				StudentClassEnrollment.class).setParameter("sessionId", session.getUniqueId()).list());
+        	setPhase("Loading credits from other academic sessions...", enrollments.size());
+        	Collections.sort(enrollments, new Comparator<StudentClassEnrollment>() {
+        		ClassCourseComparator ccc = new ClassCourseComparator();
+				@Override
+				public int compare(StudentClassEnrollment e1, StudentClassEnrollment e2) {
+					int cmp = e1.getStudent().compareTo(e2.getStudent());
+					if (cmp != 0) return cmp;
+					return ccc.compareClasses(e1.getCourseOffering(), e2.getCourseOffering(), e1.getClazz(), e2.getClazz());
+				}
+			});
+			HasGradableSubpart gs = null;
+			if (Class_.getExternalClassNameHelper() != null && Class_.getExternalClassNameHelper() instanceof HasGradableSubpart)
+				gs = (HasGradableSubpart) Class_.getExternalClassNameHelper();
+			else
+				gs = new DefaultExternalClassNameHelper();
+        	for (StudentClassEnrollment enrollment: enrollments) {
+        		Student student = ext2student.get(enrollment.getStudent().getExternalUniqueId());
+        		if (student != null && (student.hasMaxCredit() || student.hasMinCredit())) {
+        			Float creditOverride = enrollment.getClazz().getCredit(enrollment.getCourseOffering());
+        			if (creditOverride != null) {
+        				if (student.hasMaxCredit())
+        					student.setMaxCredit(Math.max(0, student.getMaxCredit() - creditOverride));
+        				if (student.hasMinCredit())
+        					student.setMinCredit(Math.max(0, student.getMinCredit() - creditOverride));
+        				iProgress.debug("Decreasing credits by " + creditOverride + " for " + student.getName() + " (" + student.getExternalId() + ") for " + enrollment.getClazz().getClassLabel(enrollment.getCourseOffering()));
+        			} else {
+        				CourseCreditUnitConfig credit = enrollment.getClazz().getSchedulingSubpart().getCredit(); 
+        				if (credit == null && gs.isGradableSubpart(enrollment.getClazz().getSchedulingSubpart(), enrollment.getCourseOffering(), hibSession)) {
+        					credit = enrollment.getCourseOffering().getCredit();
+        				}
+        				if (credit != null) {
+        					if (student.hasMaxCredit())
+        						student.setMaxCredit(Math.max(0, student.getMaxCredit() - credit.getMinCredit()));
+        					if (student.hasMinCredit())
+        						student.setMinCredit(Math.max(0, student.getMinCredit() - credit.getMinCredit()));
+            				iProgress.debug("Decreasing credits by " + credit.getMinCredit() + " for " + student.getName() + " (" + student.getExternalId() + ") for " + enrollment.getClazz().getClassLabel(enrollment.getCourseOffering()));
+        				}
+        			}
+        		}
         	}
         }
         
@@ -2947,6 +3096,22 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
         for (LinkedSections c: getModel().getLinkedSections())
         	c.createConstraints();
         
+        if (iVisitingStudentsQuery != null) {
+        	setPhase("Checking for face-to-face courses for visiting students...", getModel().getStudents().size());
+        	for (Student student: getModel().getStudents()) {
+            	incProgress();
+            	boolean visiting = iVisitingStudentsQuery != null && iVisitingStudentsQuery.match(new UniversalOverride.StudentMatcher(student));
+            	if (visiting) {
+            		for (Request r: student.getRequests()) {
+            			if (r instanceof CourseRequest && r.getRequestPriority() == RequestPriority.Normal && isFaceToFace((CourseRequest)r))
+            				getModel().setCourseRequestPriority((CourseRequest)r, RequestPriority.VisitingF2F);
+            		}
+            		if (student.getModalityPreference() == null || student.getModalityPreference() == ModalityPreference.NO_PREFERENCE)
+            			student.setModalityPreference(ModalityPreference.ONLINE_PREFERRED);
+            	}
+        	}
+        }
+        
         setPhase("Assigning students...", getModel().getStudents().size());
         for (Student student: getModel().getStudents()) {
         	incProgress();
@@ -2994,7 +3159,7 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
             	reorderStudentRequests(student);
             }
         }
-        
+                
         if (iStudentCourseDemands != null) {
         	iStudentCourseDemands.init(hibSession, iProgress, SessionDAO.getInstance().get(iSessionId, hibSession), offerings);
     		Hashtable<Long, Student> students = new Hashtable<Long, Student>();
@@ -3434,55 +3599,50 @@ public class StudentSectioningDatabaseLoader extends StudentSectioningLoader {
 			if (attr == null && term.isEmpty()) return true;
 			if ("area".equals(attr)) {
 				for (AreaClasfMajor acm: student().getMajors())
-					if (eq(acm.getArea(), term)) return true;
+					if (like(acm.getArea(), term)) return true;
 				for (AreaClasfMajor acm: student().getMinors())
-					if (eq(acm.getArea(), term)) return true;
+					if (like(acm.getArea(), term)) return true;
 			} else if ("clasf".equals(attr) || "classification".equals(attr)) {
 				for (AreaClasfMajor acm: student().getMajors())
-					if (eq(acm.getClasf(), term)) return true;
+					if (like(acm.getClasf(), term)) return true;
 			} else if ("major".equals(attr)) {
 				for (AreaClasfMajor acm: student().getMajors())
-					if (eq(acm.getMajor(), term)) return true;
+					if (like(acm.getMajor(), term)) return true;
 			} else if ("concentration".equals(attr)) {
 				for (AreaClasfMajor acm: student().getMajors())
-					if (acm.getConcentration() != null && eq(acm.getConcentration(), term)) return true;
+					if (acm.getConcentration() != null && like(acm.getConcentration(), term)) return true;
 			} else if ("degree".equals(attr)) {
 				for (AreaClasfMajor acm: student().getMajors())
-					if (acm.getDegree() != null && eq(acm.getDegree(), term)) return true;
+					if (acm.getDegree() != null && like(acm.getDegree(), term)) return true;
 			} else if ("program".equals(attr)) {
 				for (AreaClasfMajor acm: student().getMajors())
 					if (acm.getProgram() != null && like(acm.getProgram(), term)) return true;
 			} else if ("primary-area".equals(attr)) {
 				AreaClasfMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getArea(), term)) return true;
+				if (acm != null && like(acm.getArea(), term)) return true;
 			} else if ("primary-clasf".equals(attr) || "primary-classification".equals(attr)) {
 				AreaClasfMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getClasf(), term)) return true;
+				if (acm != null && like(acm.getClasf(), term)) return true;
 			} else if ("primary-major".equals(attr)) {
 				AreaClasfMajor acm = student().getPrimaryMajor();
-				if (acm != null && eq(acm.getMajor(), term)) return true;
+				if (acm != null && like(acm.getMajor(), term)) return true;
 			} else if ("primary-concentration".equals(attr)) {
 				AreaClasfMajor acm = student().getPrimaryMajor();
-				if (acm != null && acm.getConcentration() != null && eq(acm.getConcentration(), term)) return true;
+				if (acm != null && acm.getConcentration() != null && like(acm.getConcentration(), term)) return true;
 			} else if ("primary-degree".equals(attr)) {
 				AreaClasfMajor acm = student().getPrimaryMajor();
-				if (acm != null && acm.getDegree() != null && eq(acm.getDegree(), term)) return true;
+				if (acm != null && acm.getDegree() != null && like(acm.getDegree(), term)) return true;
 			} else if ("primary-program".equals(attr)) {
 				AreaClasfMajor acm = student().getPrimaryMajor();
 				if (acm != null && acm.getProgram() != null && like(acm.getProgram(), term)) return true;
 			} else if ("minor".equals(attr)) {
 				for (AreaClasfMajor acm: student().getMinors())
-					if (eq(acm.getMajor(), term)) return true;
+					if (like(acm.getMajor(), term)) return true;
 			} else if ("group".equals(attr)) {
 				for (Group group: student().getGroups())
-					if (eq(group.getName(), term)) return true;
+					if (like(group.getName(), term)) return true;
 			}
 			return false;
-		}
-		
-		private boolean eq(String name, String term) {
-			if (name == null) return false;
-			return name.equalsIgnoreCase(term);
 		}
 		
 		private boolean like(String name, String term) {

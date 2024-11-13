@@ -144,10 +144,11 @@ public class UniTimeUserContext extends AbstractUserContext {
 			TreeSet<Session> sessions = new TreeSet<Session>();
 			
 			for (Advisor advisor: hibSession.createQuery(
-					"from Advisor where externalUniqueId = :id", Advisor.class)
+					"from Advisor where externalUniqueId = :id order by session.sessionBeginDateTime desc", Advisor.class)
 					.setParameter("id", userId).list()) {
 				if (advisor.getRole() == null || !advisor.getRole().isEnabled()) continue;
 				if (ApplicationProperty.AuthorizationAdvisorMustHaveStudents.isTrue() && advisor.getStudents().isEmpty()) continue;
+				if ((advisor.getSession().getStatusType() == null || advisor.getSession().getStatusType().isTestSession()) && !advisor.getRole().hasRight(Right.AllowTestSessions)) continue;
 				if (iName == null && advisor.hasName()) iName = advisor.getName(DepartmentalInstructor.sNameFormatLastFirstMiddle);
 				if (iEmail == null) iEmail = advisor.getEmail();
 				RoleAuthority authority = new RoleAuthority(advisor.getUniqueId(), advisor.getRole());
@@ -159,26 +160,32 @@ public class UniTimeUserContext extends AbstractUserContext {
 			Roles instructorRole = Roles.getRole(Roles.ROLE_INSTRUCTOR, hibSession);
 			if (instructorRole != null && instructorRole.isEnabled()) {
 				for (DepartmentalInstructor instructor: hibSession.createQuery(
-						"from DepartmentalInstructor where externalUniqueId = :id", DepartmentalInstructor.class)
+						"from DepartmentalInstructor where externalUniqueId = :id order by department.session.sessionBeginDateTime desc, department.deptCode", DepartmentalInstructor.class)
 						.setParameter("id", userId).list()) {
 					if (iName == null) iName = instructor.getName(DepartmentalInstructor.sNameFormatLastFirstMiddle);
 					if (iEmail == null) iEmail = instructor.getEmail();
-					List<? extends UserAuthority> authorities = getAuthorities(Roles.ROLE_INSTRUCTOR, instructor.getDepartment().getSession());
-					UserAuthority authority = (authorities.isEmpty() ? null : authorities.get(0));
-					if (authority == null) {
-						authority = new RoleAuthority(instructor.getUniqueId(), instructorRole);
-						authority.addQualifier(instructor.getDepartment().getSession());
-						addAuthority(authority);
-						sessions.add(instructor.getDepartment().getSession());
+					if ((instructor.getDepartment().getSession().getStatusType() != null && !instructor.getDepartment().getSession().getStatusType().isTestSession())
+							|| Roles.getRole(Roles.ROLE_INSTRUCTOR, hibSession).hasRight(Right.AllowTestSessions)) {
+						List<? extends UserAuthority> authorities = getAuthorities(Roles.ROLE_INSTRUCTOR, instructor.getDepartment().getSession());
+						UserAuthority authority = (authorities.isEmpty() ? null : authorities.get(0));
+						if (authority == null) {
+							authority = new RoleAuthority(instructor.getUniqueId(), instructorRole);
+							authority.addQualifier(instructor.getDepartment().getSession());
+							addAuthority(authority);
+							sessions.add(instructor.getDepartment().getSession());
+						}
+						authority.addQualifier(instructor.getDepartment());
 					}
-					authority.addQualifier(instructor.getDepartment());
-					if (instructor.getRole() != null) {
+					if (instructor.getRole() != null && (
+						(instructor.getDepartment().getSession().getStatusType() != null && !instructor.getDepartment().getSession().getStatusType().isTestSession())
+									|| instructor.getRole().hasRight(Right.AllowTestSessions))) {
 						List<? extends UserAuthority> instrRoleAuthorities = getAuthorities(instructor.getRole().getReference(), instructor.getDepartment().getSession());
 						UserAuthority instrRoleAuthority = (instrRoleAuthorities.isEmpty() ? null : instrRoleAuthorities.get(0));
 						if (instrRoleAuthority == null) {
 							instrRoleAuthority = new RoleAuthority(instructor.getUniqueId(), instructor.getRole());
 							instrRoleAuthority.addQualifier(instructor.getDepartment().getSession());
 							addAuthority(instrRoleAuthority);
+							sessions.add(instructor.getDepartment().getSession());
 						}
 						instrRoleAuthority.addQualifier(instructor.getDepartment());
 						instrRoleAuthority.addQualifier(new SimpleQualifier("Role", Roles.ROLE_INSTRUCTOR));
@@ -189,10 +196,11 @@ public class UniTimeUserContext extends AbstractUserContext {
 			Roles studentRole = Roles.getRole(Roles.ROLE_STUDENT, hibSession);
 			if (studentRole != null && studentRole.isEnabled()) {
 				for (Student student: hibSession.createQuery(
-						"from Student where externalUniqueId = :id", Student.class)
+						"from Student where externalUniqueId = :id order by session.sessionBeginDateTime desc", Student.class)
 						.setParameter("id", userId).list()) {
 					if (iName == null) iName = student.getName(DepartmentalInstructor.sNameFormatLastFirstMiddle);
 					if (iEmail == null) iEmail = student.getEmail();
+					if ((student.getSession().getStatusType() == null || student.getSession().getStatusType().isTestSession()) && !studentRole.hasRight(Right.AllowTestSessions)) continue;
 					UserAuthority authority = new RoleAuthority(student.getUniqueId(), studentRole);
 					authority.addQualifier(student.getSession());
 					authority.addQualifier(student);

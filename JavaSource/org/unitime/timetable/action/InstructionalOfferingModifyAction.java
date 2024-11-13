@@ -111,6 +111,11 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
     public String execute() throws Exception {
     	if (form == null)
     		form = new InstructionalOfferingModifyForm();
+    	else {
+    		// ensure that all split attendance checks are present (disabled ones are null)
+    		while (form.getSplitAttendance().size() < form.getClassIds().size())
+    			form.getSplitAttendance().add(null);
+    	}
         
         // Get operation
     	if (op == null) op = form.getOp();
@@ -363,7 +368,7 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
 	        		throw new Exception("Configuration change violates rules for Add On, rolling back the change.");
 	        	}
         	}
-
+        	
         	ioc.getInstructionalOffering().computeLabels(hibSession);
 
             ChangeLog.addChange(
@@ -376,9 +381,6 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
                     null);
 
             tx.commit();
-	        hibSession.flush();
-	        hibSession.refresh(ioc);
-	        hibSession.refresh(ioc.getInstructionalOffering());
 	    	if (configChangeAction != null){
 	        	configChangeAction.performExternalInstrOffrConfigChangeAction(ioc.getInstructionalOffering(), hibSession);
         	}
@@ -590,12 +592,12 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
 						parent.getChildClasses().remove(c);
 						hibSession.merge(parent);
 					}
-					c.getSchedulingSubpart().getClasses().remove(c);
 					if (c.getPreferences() != null)
 					    c.getPreferences().removeAll(c.getPreferences());
 					
 					c.deleteAllDependentObjects(hibSession, false);
 					
+					c.getSchedulingSubpart().getClasses().remove(c);
 					hibSession.remove(c);
 	        	}
 	        }
@@ -629,6 +631,7 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
 		Iterator it12 = (form.getEditExternalId() ? form.getExternalIds().listIterator() : null);
 		Iterator it13 = (form.getEditSnapshotLimits() ? form.getSnapshotLimits().listIterator() : null);
 		Iterator it14 = (form.getDisplayLms() ? form.getLms().listIterator() : null);
+		Iterator<Boolean> it15 = form.getSplitAttendance().listIterator();
 		Date timeStamp = new Date();
 
 		for(;it1.hasNext();){
@@ -684,6 +687,7 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
 			Long lmsId = null;
 			if (lmsStrId != null && lmsStrId.length() != 0)
 				lmsId = Long.valueOf(lmsStrId);
+			Boolean splitAttendance = it15.next();
 
 			if (classId.longValue() < 0){
 				Class_ newClass = new Class_();
@@ -722,6 +726,7 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
 					}
 				}
 				newClass.setLms(lms);
+				newClass.setRoomsSplitAttendance(splitAttendance);
 
 				hibSession.persist(newClass);
 				hibSession.persist(ss);
@@ -754,6 +759,7 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
 		Iterator it12 = form.getIsCancelled().listIterator();
 		Iterator it13 = (form.getEditSnapshotLimits() ? form.getSnapshotLimits().listIterator() : null);
 		Iterator it14 = (form.getDisplayLms() ? form.getLms().listIterator() : null);
+		Iterator<Boolean> it15 = form.getSplitAttendance().listIterator();
 		Date timeStamp = new Date();
 
 		for(;it1.hasNext();){
@@ -803,6 +809,7 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
 			Long lmsId = null;
 			if (lmsStrId != null && lmsStrId.length() != 0)
 				lmsId = Long.valueOf(lmsStrId);
+			Boolean splitAttendance = it15.next();
 
 			Long parentClassId = null;
 			String parentClassIdString = (String) it10.next();
@@ -916,6 +923,10 @@ public class InstructionalOfferingModifyAction extends UniTimeAction<Instruction
 				if (!modifiedClass.isCancelled().equals(cancelled)) {
 					modifiedClass.setCancelled(cancelled);
 					modifiedClass.cancelEvent(sessionContext.getUser(), hibSession, cancelled);
+					changed = true;
+				}
+				if (modifiedClass.isRoomsSplitAttendance() == null || !modifiedClass.isRoomsSplitAttendance().equals(splitAttendance)) {
+					modifiedClass.setRoomsSplitAttendance(splitAttendance);
 					changed = true;
 				}
 				

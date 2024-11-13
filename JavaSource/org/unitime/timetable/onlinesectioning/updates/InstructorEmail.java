@@ -252,7 +252,7 @@ public class InstructorEmail implements OnlineSectioningAction<Boolean> {
 		protected String iInstructorId;
 		
 		public InstructorTableSectionLine(String externalId, XCourse course, XSubpart subpart, XSection section, String requires, URL url) {
-			super(null, course, subpart, section, requires, url);
+			super(null, course, subpart, section, requires, url, false);
 			iInstructorId = externalId;
 		}
 		
@@ -301,7 +301,7 @@ public class InstructorEmail implements OnlineSectioningAction<Boolean> {
 		protected String iInstructorId;
 		
 		public InstructorTableSectionModifiedLine(XCourse course, String instructorId, XSubpart oldSubpart, XSubpart subpart, XSection oldSection, XSection section, String oldRequires, String requires, URL url) {
-			super(null, course, oldSubpart, subpart, oldSection, section, oldRequires, requires, url);
+			super(null, course, oldSubpart, subpart, oldSection, section, oldRequires, requires, url, false);
 			iInstructorId = instructorId;
 		}
 		
@@ -418,10 +418,9 @@ public class InstructorEmail implements OnlineSectioningAction<Boolean> {
 				}
 				return false;
 			} else { // do not check for assignment changes
-				XCourseId course = getCourse();
 				for (XSection oldSection: iOldSections) {
 					for (XSection newSection: iNewSections) {
-						if (ReloadOfferingAction.sameName(course.getCourseId(), newSection, oldSection) && (
+						if (newSection.equals(oldSection) && (
 								!sameTime(checkTime, newSection, oldSection) ||
 								!sameRoom(checkRoom, newSection, oldSection) ||
 								!sameShare(checkShare, oldSection.getInstructor(iOldInstructor.getExternalId()), newSection.getInstructor(iNewInstructor.getExternalId())) ||

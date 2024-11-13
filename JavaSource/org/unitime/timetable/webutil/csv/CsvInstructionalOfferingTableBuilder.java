@@ -355,9 +355,9 @@ public class CsvInstructionalOfferingTableBuilder extends WebInstructionalOfferi
         	DurationModel dm = clazz.getSchedulingSubpart().getInstrOfferingConfig().getDurationModel();
         	Integer ah = dm.getArrangedHours(clazz.getSchedulingSubpart().getMinutesPerWk(), clazz.effectiveDatePattern());
             if (ah == null) {
-                addText(cell, "Arr Hrs", true);
+                addText(cell, MSG.arrHrs(), true);
             } else {
-                addText(cell, "Arr "+ah+" Hrs", true);
+                addText(cell, MSG.arrHrsN(ah), true);
             }
         }
         return cell;
@@ -468,7 +468,7 @@ public class CsvInstructionalOfferingTableBuilder extends WebInstructionalOfferi
 	    	SchedulingSubpart ss = (SchedulingSubpart) prefGroup;
 	    	boolean unlimited = ss.getInstrOfferingConfig().isUnlimitedEnrollment().booleanValue();
 	    	if (!unlimited) {
-		    	int limit = (ss.getLimit()==null?0:ss.getLimit().intValue());
+	    		int limit = ss.getLimit();
 		    	int maxExpCap = ss.getMaxExpectedCapacity(); 
 		    	if (limit==maxExpCap)
 		    		addText(cell, String.valueOf(limit), true);
@@ -730,14 +730,12 @@ public class CsvInstructionalOfferingTableBuilder extends WebInstructionalOfferi
     		Class_ aClass = (Class_) prefGroup;
     		if (aClass.getNbrRooms()!=null && aClass.getNbrRooms().intValue()!=1) {
     			if (aClass.getNbrRooms().intValue()==0)
-    				addText(cell, "N/A", true);
-    			else {
-    				String text = aClass.getNbrRooms().toString();
-    				text += " at ";
-    				if (aClass.getRoomRatio() != null)
-    					text += sRoomRatioFormat.format(aClass.getRoomRatio().floatValue());
-    				else
-    					text += "0";
+    				addText(cell, MSG.notApplicable(), true);
+    			else if (Boolean.TRUE.equals(aClass.isRoomsSplitAttendance())) {
+    				String text = MSG.cellNbrRoomsAndRoomRatioSlitAttendance(aClass.getNbrRooms(), aClass.getRoomRatio() == null ? "0" : sRoomRatioFormat.format(aClass.getRoomRatio()));
+    				addText(cell, text, true);
+    			} else {
+    				String text = MSG.cellNbrRoomsAndRoomRatio(aClass.getNbrRooms(), aClass.getRoomRatio() == null ? "0" : sRoomRatioFormat.format(aClass.getRoomRatio()));
     				addText(cell, text, true);
     			}
     		} else {

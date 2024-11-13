@@ -32,7 +32,7 @@
 
 		function confirmNumClasses(numClasses) {
 			if (numClasses > 100) {
-				if (!confirmDelete("<%=MSG.confirmCreateTooManyClasses()%>".replace("{0}",numClasses))){
+				if (!confirmDelete("<%=MSG.confirmCreateTooManyClasses(999)%>".replace("999",numClasses))){
 			        return(false);
 				}
 			}
@@ -49,6 +49,15 @@
 			} 
 			else {
 				return false;
+			}
+		}
+		
+		function checkNumberOfRooms(nbrRooms, id) {
+			if (nbrRooms && nbrRooms > 1) {
+				document.getElementById('sa'+id).disabled = false;
+			} else {
+				document.getElementById('sa'+id).disabled = true;
+				document.getElementById('sa'+id).checked = false;
 			}
 		}
 

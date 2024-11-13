@@ -49,6 +49,7 @@ import org.cpsolver.coursett.model.TimetableModel;
 import org.cpsolver.ifs.assignment.Assignment;
 import org.cpsolver.ifs.criteria.Criterion;
 import org.cpsolver.ifs.model.Constraint;
+import org.cpsolver.ifs.model.GlobalConstraint;
 import org.cpsolver.ifs.solution.Solution;
 import org.cpsolver.ifs.solver.Solver;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -167,13 +168,15 @@ public class SelectedAssignmentBackend implements GwtRpcImplementation<SelectedA
 		ClassAssignmentDetails details = ClassAssignmentDetailsBackend.createClassAssignmentDetails(context, solver, lecture, oldPlacement, false, false);
 		if (newPlacement != null) {
 			if (newPlacement.isMultiRoom()) {
+				int roomIndex = 0;
 				for (RoomLocation room: newPlacement.getRoomLocations()) {
 					details.setAssignedRoom(new RoomInfo(
 							room.getName(),
 							room.getId(),
 							room.getRoomSize(),
-							(room.getPreference() == 0 && lecture.nrRoomLocations() == lecture.getNrRooms() ? PreferenceLevel.sIntLevelRequired : room.getPreference())
+							(room.getPreference(roomIndex) == 0 && lecture.nrRoomLocations() == lecture.getNrRooms() ? PreferenceLevel.sIntLevelRequired : room.getPreference(roomIndex))
 							));
+					roomIndex++;
 				}
 			} else {
 				RoomLocation room = newPlacement.getRoomLocation();
@@ -407,6 +410,15 @@ public class SelectedAssignmentBackend implements GwtRpcImplementation<SelectedA
         		}
             }
         }
+		for (GlobalConstraint constraint: p.variable().getModel().globalConstraints()) {
+			Set<Placement> conflicts = new HashSet<Placement>();
+            constraint.computeConflicts(assignment, p, conflicts);
+            for (Placement conflict: conflicts) {
+        		if (!descriptions.containsKey(conflict.variable().getClassId())) {
+    				descriptions.put(conflict.variable().getClassId(), TimetableSolver.getConstraintName(constraint));
+        		}
+            }
+		}
 	}
 	
 	public static Suggestion computeSuggestion(SuggestionsContext context, TimetableSolver solver, List<SelectedAssignment> assignments, Placement placement) {

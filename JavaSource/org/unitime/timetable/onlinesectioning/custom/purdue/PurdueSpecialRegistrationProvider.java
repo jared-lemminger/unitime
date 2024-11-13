@@ -939,6 +939,7 @@ public class PurdueSpecialRegistrationProvider implements SpecialRegistrationPro
 			request.campus = getBannerCampus(session);
 			request.studentId = getBannerId(student);
 			request.pgrmcode = SpecialRegistrationHelper.getProgramCode(student);
+			request.studentCampus = SpecialRegistrationHelper.getCampusCode(student);
 			buildChangeList(request, server, helper, student, input.getClassAssignments(), input.getErrors(), input.getCredit(), input.getNotes());
 			// buildChangeList(request, server, helper, student, input.getClassAssignments(), validate(server, helper, student, input.getClassAssignments()));
 			request.regRequestId = input.getRequestId();
@@ -1319,17 +1320,15 @@ public class PurdueSpecialRegistrationProvider implements SpecialRegistrationPro
 
 			List<XReservation> reservations = new ArrayList<XReservation>();
 			boolean canAssignOverLimit = false;
-			reservations: for (XReservation r: offering.getReservations()) {
+			for (XReservation r: offering.getReservations()) {
 				if (!r.isApplicable(student, course)) continue;
+				if (!r.isIncluded(config.getConfigId(), sections)) continue;
 				if (r.getLimit() >= 0 && r.getLimit() <= enrollments.countEnrollmentsForReservation(r.getReservationId())) {
 					boolean contain = false;
 					for (XEnrollment e: enrollments.getEnrollmentsForReservation(r.getReservationId()))
 						if (e.getStudentId().equals(student.getStudentId())) { contain = true; break; }
 					if (!contain) continue;
 				}
-				if (!r.getConfigsIds().isEmpty() && !r.getConfigsIds().contains(config.getConfigId())) continue;
-				for (XSection section: sections)
-					if (r.getSectionIds(section.getSubpartId()) != null && !r.getSectionIds(section.getSubpartId()).contains(section.getSectionId())) continue reservations;
 				if (r.canAssignOverLimit())
 					canAssignOverLimit = true;
 				reservations.add(r);
@@ -2756,6 +2755,7 @@ public class PurdueSpecialRegistrationProvider implements SpecialRegistrationPro
 				req.campus = getBannerCampus(session);
 				req.studentId = getBannerId(student);
 				req.pgrmcode = SpecialRegistrationHelper.getProgramCode(student);
+				req.studentCampus = SpecialRegistrationHelper.getCampusCode(student);
 				req.changes = new ArrayList<Change>();
 				if (request.getMaxCredit() != null && cred > request.getMaxCredit()) {
 					req.maxCredit = cred;
@@ -2912,6 +2912,7 @@ public class PurdueSpecialRegistrationProvider implements SpecialRegistrationPro
 			request.campus = getBannerCampus(session);
 			request.studentId = getBannerId(student);
 			request.pgrmcode = SpecialRegistrationHelper.getProgramCode(student);
+			request.studentCampus = SpecialRegistrationHelper.getCampusCode(student);
 			request.regRequestId = input.getRequestId();
 			request.mode = (input.isPreReg() ? ApiMode.valueOf(ApplicationProperties.getProperty("purdue.specreg.mode.validation", "PREREG")) : getSpecialRegistrationMode()); 
 			if (helper.getUser() != null) {
@@ -3024,6 +3025,7 @@ public class PurdueSpecialRegistrationProvider implements SpecialRegistrationPro
 			req.campus = getBannerCampus(session);
 			req.studentId = getBannerId(student);
 			req.pgrmcode = SpecialRegistrationHelper.getProgramCode(student);
+			req.studentCampus = SpecialRegistrationHelper.getCampusCode(student);
 			req.changes = new ArrayList<Change>();
 			if (request.getMaxCredit() != null) {
 				req.maxCredit = request.getMaxCredit();

@@ -22,6 +22,18 @@
 	box-sizing: border-box;
 }
 
+button {
+	color: #000;
+}
+
+input[type="submit"] {
+	color: #000;
+}
+
+input[type="button"] {
+	color: #000;
+}
+
 .unitime-Body {
 	font-family: sans-serif, verdana, arial;
 	background-color: #FFFFFF;
@@ -2494,7 +2506,7 @@ A.unitime-Hint:link,A.unitime-Hint:visited,A.unitime-Hint:active,A.unitime-Hint:
 }
 
 .unitime-TravelTimes .default {
-	color: gray;
+	color: blue;
 }
 
 .unitime-TravelTimes .horizontal-header {
@@ -3141,7 +3153,6 @@ div.gwt-MenuBarPopup {
 }
 
 .unitime-SuggestionsHintWidget {
-	zoom:50%;
 	display: inline-block;
 	-moz-transform: scale(0.5);
 	transform: scale(0.5);
@@ -4092,6 +4103,12 @@ unitime-RoomSharingWidget .legend .blank {
 
 .unitime-RoomDetail .note {
 	white-space: pre-wrap;
+}
+
+.unitime-RoomDetail .roomlink {
+	padding-left: 10px;
+	font-size: small;
+	vertical-align: bottom;
 }
 
 .unitime-RoomEdit .coordinates .number {
@@ -5373,19 +5390,19 @@ unitime-RoomSharingWidget .legend .blank {
 
 .unitime-SuggestionsBox .filter {
 	display: block;
-	width: 90%;
+	text-align: center;
 	overflow: hidden;
 	margin: auto;
 	padding: 2px;
 }
 
 .unitime-SuggestionsBox .filter .label {
-	margin: 3px 2px 0px 2px;
-	float: left;
+	margin: 3px 2px 3px 2px;
+	display: inline-block;
 }
 
 .unitime-SuggestionsBox .filter .buttons {
-	float: right;
+	display: inline-block;
 }
 
 .unitime-SuggestionsBox .filter .buttons .gwt-Button {
@@ -5395,12 +5412,15 @@ unitime-RoomSharingWidget .legend .blank {
 
 .unitime-SuggestionsBox .filter .text {
 	overflow: hidden;
-	display: block;
+	display: inline-block;
+	width: 400px;
+	max-width: calc(90vw - 100px);
 }
 
 .unitime-SuggestionsBox .filter .text .gwt-SuggestBox {
 	width: 100%;
 	height: 25px;
+	padding-bottom: 2px;
 }
 
 .unitime-SuggestionsBox .unitime-ScrollPanel {
@@ -5574,6 +5594,33 @@ unitime-RoomSharingWidget .legend .blank {
 	overflow: auto;
 	position: relative;
 	zoom: 1;
+}
+
+.unitime-StickyTable {
+	overflow: auto;
+	position: relative;
+	zoom: 1;
+	max-height: 100vh;
+}
+
+.unitime-StickyTable .WebTableHeader {
+	font-family: sans-serif, verdana, arial;
+	position: sticky;
+	top: 0;
+}
+
+.unitime-StickyTable .WebTableHeaderFirstRow {
+	font-family: sans-serif, verdana, arial;
+	position: sticky;
+	top: 0;
+	height: 23px;
+}
+
+.unitime-StickyTable .WebTableHeaderSecondRow {
+	font-family: sans-serif, verdana, arial;
+	position: sticky;
+	top: 23px;
+	height: 23px;
 }
 
 .unitime-ScrollTableCell {
@@ -7606,4 +7653,225 @@ unitime-RoomSharingWidget .legend .blank {
 .unitime-CourseFinderDialog .filter .filter-text {
 	font-style: italic;
 	padding-left: 10px;	
+}
+
+.unitime-MultipleClassSetup .supart-limits {
+	display: table;
+}
+
+.unitime-MultipleClassSetup .subpart-limit {
+	display: table-row;
+}
+
+.unitime-MultipleClassSetup .limit-too-low {
+	color: red;
+	font-weight: bold;
+}
+
+.unitime-MultipleClassSetup .limit-too-low-cancel {
+	color: orange;
+	font-weight: bold;
+}
+
+.unitime-MultipleClassSetup .subpart-limit * {
+	display: table-cell;
+	padding: 0px 5px 0px 2px;
+	vertical-align: middle;
+}
+
+.unitime-MultipleClassSetup .subpart-limit .subpart-counter {
+	width: 50px;
+}
+
+.unitime-MultipleClassSetup .subpart-limit input {
+	vertical-align: middle;
+}
+
+.unitime-MultipleClassSetup .subpart-limit .subpart-label {
+	font-weight: bold;
+}
+
+.unitime-MultipleClassSetup .subpart-limit .display-instructors-label {
+	padding: 0px 2px 0px 20px;
+}
+
+.unitime-MultipleClassSetup .subpart-limit .student-scheduling-label {
+	padding: 0px 2px 0px 20px;
+}
+
+.unitime-MultipleClassSetup .class-enrollment {
+	text-align: right;
+}
+
+.unitime-MultipleClassSetup .class-cancelled {
+	font-style: italic;
+	color: gray !important;
+}
+
+.unitime-MultipleClassSetup .class-snapshot {
+	text-align: right;
+}
+
+.unitime-MultipleClassSetup .not-editable {
+	color: black;
+}
+
+.unitime-MultipleClassSetup select:disabled {
+	background-color: transparent;
+	border: 1px solid transparent;
+	padding-left: 4px;
+	appearance: none;
+	color: black;
+	opacity: inherit;
+}
+
+.unitime-MultipleClassSetup .gwt-SuggestBox-readonly {
+	border: 1px solid transparent;
+	font-style: normal;
+	background: transparent;
+	color: black;
+	opacity: inherit;
+	font-size: inherit;
+	font-family: inherit;
+	font-weight: inherit;
+}
+
+.unitime-MultipleClassSetup .bad-limit .gwt-SuggestBox {
+	background-color: #FFD7D7;
+}
+
+.unitime-MultipleClassSetup .bad-limit-cancel .gwt-SuggestBox {
+	background-color: #FFF0AB;
+}
+
+.unitime-MultipleClassSetup .error-table {
+	color: red;
+	border: 1px solid red;
+	padding: 5px;
+	margin: 5px;
+}
+
+.unitime-MultipleClassSetup .error-message {
+	padding-left: 10px;
+	display: list-item;
+	list-style-position: inside;
+}
+
+.unitime-MultipleClassSetup .class-name {
+	white-space: nowrap;
+}
+
+.unitime-MultipleClassSetup .class-buttons {
+	padding: 0px 1px 0px 1px;
+	white-space: nowrap;
+}
+
+.unitime-MultipleClassSetup .class-limit {
+	white-space: nowrap;
+}
+
+.unitime-MultipleClassSetup .class-buttons div {
+	display: inline-block;
+	margin: -2px;
+}
+
+.unitime-MultipleClassSetup .class-room-cap .gwt-Label {
+	text-align: right;
+}
+
+.unitime-MultipleClassSetup .class-buttons img {
+	margin: 2px;
+}
+
+.unitime-InstrOfferingConfig .instructional-type-selection {
+	display: inline-block;
+	vertical-align: middle;
+}
+
+.unitime-InstrOfferingConfig .instructional-type-selection button {
+	height: 22px;
+	margin-left: 3px;
+}
+
+.unitime-InstrOfferingConfig .subpart-label {
+	display: inline-block;
+	white-space: nowrap;
+	min-width: 200px;
+}
+
+.unitime-InstrOfferingConfig .subpart-label .gwt-Label {
+	display: inline-block;
+}
+
+.unitime-InstrOfferingConfig .subpart-label img {
+	vertical-align: middle;
+	margin-right: 4px;
+	margin-left: 4px;
+}
+
+.unitime-InstrOfferingConfig .subpart-limit {
+	white-space: nowrap;
+}
+
+.unitime-InstrOfferingConfig .subpart-buttons {
+	padding: 0px 1px 0px 1px;
+	white-space: nowrap;
+}
+
+.unitime-InstrOfferingConfig .class-limit {
+	white-space: nowrap;
+}
+
+.unitime-InstrOfferingConfig .subpart-buttons div {
+	display: inline-block;
+	margin: -2px;
+}
+
+.unitime-InstrOfferingConfig .subpart-buttons img {
+	margin: 2px;
+}
+
+.unitime-InstrOfferingConfig .error-table {
+	color: red;
+	border: 1px solid red;
+	padding: 5px;
+	margin: 5px;
+}
+
+.unitime-InstrOfferingConfig .error-message {
+	padding-left: 10px;
+	display: list-item;
+	list-style-position: inside;
+}
+
+.unitime-InstrOfferingConfig .bad-limit .class-limit input {
+	background-color: #FFD7D7;
+}
+
+.unitime-InstrOfferingConfig .bad-nbr-classes .subpart-nbr-classes {
+	background-color: #FFD7D7;
+}
+
+.unitime-InstrOfferingConfig .not-editable {
+	color: black;
+}
+
+.unitime-InstrOfferingConfig select:disabled {
+	background-color: transparent;
+	border: 1px solid transparent;
+	padding-left: 4px;
+	appearance: none;
+	color: black;
+	opacity: inherit;
+}
+
+.unitime-InstrOfferingConfig .gwt-SuggestBox-readonly {
+	border: 1px solid transparent;
+	font-style: normal;
+	background: transparent;
+	color: black;
+	opacity: inherit;
+	font-size: inherit;
+	font-family: inherit;
+	font-weight: inherit;
 }

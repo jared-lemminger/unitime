@@ -68,6 +68,7 @@ public class WebInstrOfferingConfigTableBuilder extends
 	
 	public String buttonsTable(InstrOfferingConfig ioc, SessionContext context) {
 		StringBuffer btnTable = new StringBuffer("");
+		btnTable.append("<A name=\"ioc" + ioc.getUniqueId() + "\"></A>");
 		btnTable.append("<div class='unitime-MainTableHeader'><div class='unitime-HeaderPanel' style='margin-bottom: 0px;'>");
 		btnTable.append("<div class='left'><div class='title'>");
 		String configName = ioc.getName();
@@ -82,7 +83,7 @@ public class WebInstrOfferingConfigTableBuilder extends
 		    btnTable.append("<div class='right unitime-NoPrint' style='line-height: 29px; vertical-align: bottom; font-size: small;'>");
 	        btnTable.append("<table border='0' align='right' cellspacing='1' cellpadding='0'><tr>");
 	        
-	        if (context.hasPermission(ioc, Right.InstrOfferingConfigEdit)) {
+	        if (ApplicationProperty.LegacyInstrOfferingConfig.isTrue() && context.hasPermission(ioc, Right.InstrOfferingConfigEdit)) {
 		        btnTable.append("<td>");
 		        btnTable.append("	<form method='post' action='instructionalOfferingConfigEdit.action' class='FormWithNoPadding'>");
 		        btnTable.append("		<input type='hidden' name='form.configId' value='" + ioc.getUniqueId().toString() + "'>");
@@ -91,12 +92,28 @@ public class WebInstrOfferingConfigTableBuilder extends
 		        btnTable.append("</td>");
 	        }
 	        
-	        if (context.hasPermission(ioc, Right.MultipleClassSetup)) {
-		        btnTable.append("<td>");
+	        if (ApplicationProperty.LegacyInstrOfferingConfig.isFalse() && context.hasPermission(ioc, Right.InstrOfferingConfigEdit)) {
+	        	btnTable.append("<td>");
+				btnTable.append("<span id='" + ioc.getUniqueId().toString() + "' name='UniTimeGWT:InstrOfferingConfigButton' style=\"display: none;\">");
+				btnTable.append(ioc.getUniqueId().toString());
+				btnTable.append("</span>");
+		        btnTable.append("</td>");
+	        }
+	        
+	        if (ApplicationProperty.LegacyClassSetup.isTrue() && context.hasPermission(ioc, Right.MultipleClassSetup)) {
+	        	btnTable.append("<td>");
 		        btnTable.append("	<form method='post' action='instructionalOfferingModify.action' class='FormWithNoPadding'>");
 		        btnTable.append("		<input type='hidden' name='uid' value='" + ioc.getUniqueId().toString() + "'>");
 		        btnTable.append("		<input type='submit' name='op' value='" + MSG.actionClassSetup() +"' title='" + MSG.titleClassSetup() + "' class='gwt-Button'> ");
 		        btnTable.append("	</form>");
+		        btnTable.append("</td>");
+	        }
+	        
+	        if (ApplicationProperty.LegacyClassSetup.isFalse() && context.hasPermission(ioc, Right.MultipleClassSetup)) {
+	        	btnTable.append("<td>");
+				btnTable.append("<span id='" + ioc.getUniqueId().toString() + "' name='UniTimeGWT:MultipleClassSetupButton' style=\"display: none;\">");
+				btnTable.append(ioc.getUniqueId().toString());
+				btnTable.append("</span>");
 		        btnTable.append("</td>");
 	        }
 
@@ -162,37 +179,6 @@ public class WebInstrOfferingConfigTableBuilder extends
 	        
 	        this.setDisplayDistributionPrefs(false);
 	        
-	        if (isShowTimetable()) {
-	        	boolean hasTimetable = false;
-	        	if (context.hasPermission(Right.ClassAssignments) && classAssignment != null) {
-	        		try {
-	                	if (classAssignment instanceof CachedClassAssignmentProxy) {
-	                		Vector allClasses = new Vector();
-		        			for (Iterator k=ioc.getSchedulingSubparts().iterator();!hasTimetable && k.hasNext();) {
-		        				SchedulingSubpart ss = (SchedulingSubpart)k.next();
-		        				for (Iterator l=ss.getClasses().iterator();l.hasNext();) {
-		        					Class_ clazz = (Class_)l.next();
-		        					allClasses.add(clazz);
-		        				}
-		        			}
-	                		((CachedClassAssignmentProxy)classAssignment).setCache(allClasses);
-	                		hasTimetable = !classAssignment.getAssignmentTable(allClasses).isEmpty();
-	                	} else {
-		        			for (Iterator k=ioc.getSchedulingSubparts().iterator();!hasTimetable && k.hasNext();) {
-		        				SchedulingSubpart ss = (SchedulingSubpart)k.next();
-		        				for (Iterator l=ss.getClasses().iterator();l.hasNext();) {
-		        					Class_ clazz = (Class_)l.next();
-		        					if (classAssignment.getAssignment(clazz)!=null) {
-		        						hasTimetable = true; break;
-		        					}
-		        				}
-		        			}
-	                	}
-	        		} catch (Exception e) {}
-	        	}
-	        	setDisplayTimetable(hasTimetable);
-	        }
-	        
 	        if (getDisplayConfigOpButtons()) {
         		try {
         			outputStream.write(this.buttonsTable(ioc, context));
@@ -227,12 +213,55 @@ public class WebInstrOfferingConfigTableBuilder extends
 		        }
 	    	}
             setVisibleColumns(columnList);
-	        boolean hasInstructorAssignments = false;
-	        ss: for (SchedulingSubpart ss: ioc.getSchedulingSubparts()) {
-	        	if (ss.isInstructorAssignmentNeeded()) { hasInstructorAssignments = true; break; }
-	        	for (Class_ c: ss.getClasses())
-	        		if (c.isInstructorAssignmentNeeded()) { hasInstructorAssignments = true; break ss; }
+            
+	        if (isShowTimetable()) {
+	        	boolean hasTimetable = false;
+	        	if (context.hasPermission(Right.ClassAssignments) && classAssignment != null) {
+	        		try {
+	                	if (classAssignment instanceof CachedClassAssignmentProxy) {
+	                		Vector allClasses = new Vector();
+		        			for (Iterator k=ioc.getSchedulingSubparts().iterator();!hasTimetable && k.hasNext();) {
+		        				SchedulingSubpart ss = (SchedulingSubpart)k.next();
+		        				for (Iterator l=ss.getClasses().iterator();l.hasNext();) {
+		        					Class_ clazz = (Class_)l.next();
+		        					allClasses.add(clazz);
+		        				}
+		        			}
+	                		((CachedClassAssignmentProxy)classAssignment).setCache(allClasses);
+	                		hasTimetable = !classAssignment.getAssignmentTable(allClasses).isEmpty();
+	                	} else {
+		        			for (Iterator k=ioc.getSchedulingSubparts().iterator();!hasTimetable && k.hasNext();) {
+		        				SchedulingSubpart ss = (SchedulingSubpart)k.next();
+		        				for (Iterator l=ss.getClasses().iterator();l.hasNext();) {
+		        					Class_ clazz = (Class_)l.next();
+		        					if (classAssignment.getAssignment(clazz)!=null) {
+		        						hasTimetable = true; break;
+		        					}
+		        				}
+		        			}
+	                	}
+	        		} catch (Exception e) {}
+	        	}
+	        	setDisplayTimetable(hasTimetable);
 	        }
+            
+            // Show the External Id column when there is at least one class with an external id filled in
+	        // Show schedule print note when there is a class with a note filled in
+            boolean hasDivSec = false;
+            boolean hasSchedulePrintNote = false;
+	        boolean hasInstructorAssignments = false;
+            CourseOffering co = ioc.getInstructionalOffering().getControllingCourseOffering();
+	        for (SchedulingSubpart ss: ioc.getSchedulingSubparts()) {
+	        	if (ss.isInstructorAssignmentNeeded()) hasInstructorAssignments = true;
+	        	for (Class_ c: ss.getClasses()) {
+	        		String divSec = (isShowOriginalDivSecs() ? c.getClassSuffix() : c.getClassSuffix(co));
+	        		if (divSec != null && !divSec.isEmpty()) hasDivSec = true;
+	        		if (c.getSchedulePrintNote() != null && !c.getSchedulePrintNote().trim().isEmpty()) hasSchedulePrintNote = true;
+	        		if (c.isInstructorAssignmentNeeded()) hasInstructorAssignments = true;
+	        	}
+	        }
+	        setShowDivSec(hasDivSec);
+	        setShowSchedulePrintNote(hasSchedulePrintNote);
 	        setShowInstructorAssignment(hasInstructorAssignments);
 	        setDisplayInstructorPrefs(false);
 	        ClassDurationType dtype = ioc.getEffectiveDurationType();

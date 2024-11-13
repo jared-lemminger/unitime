@@ -21,7 +21,6 @@ package org.unitime.timetable.model.base;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
@@ -36,9 +35,7 @@ import java.util.Set;
 
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
-import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.annotations.Parameter;
-import org.unitime.commons.hibernate.id.UniqueIdGenerator;
+import org.unitime.commons.annotations.UniqueIdGenerator;
 import org.unitime.timetable.model.DatePattern;
 import org.unitime.timetable.model.Department;
 import org.unitime.timetable.model.Session;
@@ -61,6 +58,7 @@ public abstract class BaseDatePattern implements Serializable {
 
 	private Session iSession;
 	private Set<DatePattern> iParents;
+	private Set<DatePattern> iChildren;
 	private Set<Department> iDepartments;
 
 	public BaseDatePattern() {
@@ -72,10 +70,7 @@ public abstract class BaseDatePattern implements Serializable {
 
 
 	@Id
-	@GenericGenerator(name = "date_pattern_id", type = UniqueIdGenerator.class, parameters = {
-		@Parameter(name = "sequence", value = "date_pattern_seq")
-	})
-	@GeneratedValue(generator = "date_pattern_id")
+	@UniqueIdGenerator(sequence = "date_pattern_seq")
 	@Column(name="uniqueid")
 	public Long getUniqueId() { return iUniqueId; }
 	public void setUniqueId(Long uniqueId) { iUniqueId = uniqueId; }
@@ -126,6 +121,19 @@ public abstract class BaseDatePattern implements Serializable {
 	@Deprecated
 	public void addToparents(DatePattern datePattern) {
 		addToParents(datePattern);
+	}
+
+	@ManyToMany(mappedBy = "parents")
+	@Cache(usage = CacheConcurrencyStrategy.READ_WRITE)
+	public Set<DatePattern> getChildren() { return iChildren; }
+	public void setChildren(Set<DatePattern> children) { iChildren = children; }
+	public void addToChildren(DatePattern datePattern) {
+		if (iChildren == null) iChildren = new HashSet<DatePattern>();
+		iChildren.add(datePattern);
+	}
+	@Deprecated
+	public void addTochildren(DatePattern datePattern) {
+		addToChildren(datePattern);
 	}
 
 	@ManyToMany(mappedBy = "datePatterns")

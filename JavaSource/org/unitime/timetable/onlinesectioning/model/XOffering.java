@@ -58,6 +58,7 @@ import org.cpsolver.studentsct.reservation.GroupReservation;
 import org.cpsolver.studentsct.reservation.IndividualRestriction;
 import org.cpsolver.studentsct.reservation.ReservationOverride;
 import org.cpsolver.studentsct.reservation.Restriction;
+import org.cpsolver.studentsct.reservation.UniversalOverride;
 import org.unitime.timetable.gwt.server.Query;
 import org.unitime.timetable.model.CourseOffering;
 import org.unitime.timetable.model.CourseReservation;
@@ -73,6 +74,7 @@ import org.unitime.timetable.model.OverrideReservation;
 import org.unitime.timetable.model.Reservation;
 import org.unitime.timetable.model.StudentGroupReservation;
 import org.unitime.timetable.model.StudentSchedulingRule;
+import org.unitime.timetable.model.UniversalOverrideReservation;
 import org.unitime.timetable.onlinesectioning.AcademicSessionInfo;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningHelper;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningServer;
@@ -129,6 +131,8 @@ public class XOffering implements Serializable, Externalizable {
         		iReservations.add(new XCurriculumReservation(this, (CurriculumReservation)reservation));
         	} else if (reservation instanceof CourseReservation) {
         		iReservations.add(new XCourseReservation(this, (CourseReservation)reservation));
+        	} else if (reservation instanceof UniversalOverrideReservation) {
+        		iReservations.add(new XUniversalReservation(this, (UniversalOverrideReservation)reservation));
         	}
         }
         if (offering.isByReservationOnly())
@@ -161,6 +165,8 @@ public class XOffering implements Serializable, Externalizable {
         		iReservations.add(new XCurriculumReservation((org.cpsolver.studentsct.reservation.CurriculumReservation)reservation));
         	} else if (reservation instanceof org.cpsolver.studentsct.reservation.CourseReservation) {
         		iReservations.add(new XCourseReservation((org.cpsolver.studentsct.reservation.CourseReservation)reservation));
+        	} else if (reservation instanceof UniversalOverride) {
+        		iReservations.add(new XUniversalReservation((org.cpsolver.studentsct.reservation.UniversalOverride)reservation));
         	}  else if (reservation instanceof DummyReservation) {
         		iReservations.add(new XDummyReservation(this));
         	}
@@ -386,7 +392,8 @@ public class XOffering implements Serializable, Externalizable {
     
     public int getUnreservedSectionSpace(Long sectionId, XEnrollments enrollments) {
     	XSection section = getSection(sectionId);
-        // section is unlimited -> there is unreserved space unless there is an unlimited reservation too 
+    	Long configId = getSubpart(section.getSubpartId()).getConfigId();
+    	// section is unlimited -> there is unreserved space unless there is an unlimited reservation too 
         // (in which case there is no unreserved space)
         if (section.getLimit() < 0) {
             // exclude reservations that are not directly set on this section
@@ -396,7 +403,7 @@ public class XOffering implements Serializable, Externalizable {
                 // ignore reservations NOT set directly on the section
                 if (!r.hasSectionRestriction(sectionId)) continue;
                 // there is an unlimited reservation -> no unreserved space
-                if (r.getLimit() < 0) return 0;
+                if (r.getLimit(configId) < 0) return 0;
             }
             return Integer.MAX_VALUE;
         }
@@ -409,9 +416,9 @@ public class XOffering implements Serializable, Externalizable {
             // ignore reservations NOT set directly on the section
             if (!r.hasSectionRestriction(sectionId)) continue;
             // unlimited reservation -> all the space is reserved
-            if (r.getLimit() < 0.0) return 0;
+            if (r.getLimit(configId) < 0.0) return 0;
             // compute space that can be potentially taken by this reservation
-            int reserved = r.getReservedAvailableSpace(enrollments);
+            int reserved = r.getReservedAvailableSpace(enrollments, configId);
             // deduct the space from available space
             available -= Math.max(0, reserved);
         }
@@ -431,7 +438,7 @@ public class XOffering implements Serializable, Externalizable {
                 // ignore reservations NOT set directly on the config
                 if (!r.hasConfigRestriction(configId)) continue;
                 // there is an unlimited reservation -> no unreserved space
-                if (r.getLimit() < 0) return 0;
+                if (r.getLimit(configId) < 0) return 0;
             }
             return Integer.MAX_VALUE;
         }
@@ -444,9 +451,9 @@ public class XOffering implements Serializable, Externalizable {
             // ignore reservations NOT set directly on the config
             if (!r.hasConfigRestriction(configId)) continue;
             // unlimited reservation -> all the space is reserved
-            if (r.getLimit() < 0) return 0;
+            if (r.getLimit(configId) < 0) return 0;
             // compute space that can be potentially taken by this reservation
-            double reserved = r.getReservedAvailableSpace(enrollments);
+            double reserved = r.getReservedAvailableSpace(enrollments, configId);
             // deduct the space from available space
             available -= Math.max(0, reserved);
         }
@@ -578,12 +585,12 @@ public class XOffering implements Serializable, Externalizable {
     	List<XSection> sections = getSections(enrollment);
     	for (XReservation reservation: reservations) {
     		if (reservation.isIncluded(enrollment.getConfigId(), sections)) {
-    			if (reservation.getLimit() < 0.0 || other == null || mustBeUsed)
+    			if (reservation.getLimit(enrollment.getConfigId()) < 0.0 || other == null || mustBeUsed)
     				return new XReservationId(reservation.getType(), getOfferingId(), reservation.getReservationId());
     			int used = 0;
     			for (XCourseRequest r: other)
     				if (r.getEnrollment() != null && r.getEnrollment().getOfferingId().equals(getOfferingId()) && !enrollment.getStudentId().equals(r.getStudentId()) && reservation.equals(r.getEnrollment().getReservation())) used ++;
-    			if (used < reservation.getLimit())
+    			if (used < reservation.getLimit(enrollment.getConfigId()))
     				return new XReservationId(reservation.getType(), getOfferingId(), reservation.getReservationId());
     		}
     	}
@@ -940,9 +947,10 @@ public class XOffering implements Serializable, Externalizable {
 					if (section.getTime() != null && !section.isCancelled())
 						for (XInstructor instructor: section.getAllInstructors())
 							if (student.getExternalId().equals(instructor.getExternalId()) && sections.add(section.getSectionId())) {
-								new Unavailability(student,
+								Unavailability ua = new Unavailability(student,
 										new Section(section.getSectionId(), section.getLimit(), getName() + " " + subpart.getName() + " " + section.getName(), null, section.toPlacement(), null),
 										instructor.isAllowOverlap());
+								ua.setTeachingAssignment(true);
 							}
 				}
     }
@@ -1029,6 +1037,9 @@ public class XOffering implements Serializable, Externalizable {
 				break;
 			case LearningCommunity:
 				iReservations.add(new XLearningCommunityReservation(in));
+				break;
+			case Universal:
+				iReservations.add(new XUniversalReservation(in));
 				break;
 			}
 		}

@@ -22,7 +22,6 @@ package org.unitime.timetable.model.base;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -38,9 +37,7 @@ import java.util.Set;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
 import org.hibernate.annotations.Formula;
-import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.annotations.Parameter;
-import org.unitime.commons.hibernate.id.UniqueIdGenerator;
+import org.unitime.commons.annotations.UniqueIdGenerator;
 import org.unitime.timetable.model.CourseOffering;
 import org.unitime.timetable.model.InstrOfferingConfig;
 import org.unitime.timetable.model.InstructionalOffering;
@@ -60,9 +57,7 @@ public abstract class BaseInstructionalOffering implements Serializable {
 	private Long iUniqueId;
 	private Long iInstrOfferingPermId;
 	private Boolean iNotOffered;
-	private Integer iDemand;
 	private Integer iEnrollment;
-	private Integer iLimit;
 	private Long iUniqueIdRolledForwardFrom;
 	private String iExternalUniqueId;
 	private Boolean iByReservationOnly;
@@ -90,10 +85,7 @@ public abstract class BaseInstructionalOffering implements Serializable {
 
 
 	@Id
-	@GenericGenerator(name = "instructional_offering_id", type = UniqueIdGenerator.class, parameters = {
-		@Parameter(name = "sequence", value = "instr_offr_seq")
-	})
-	@GeneratedValue(generator = "instructional_offering_id")
+	@UniqueIdGenerator(sequence = "instr_offr_seq")
 	@Column(name="uniqueid")
 	public Long getUniqueId() { return iUniqueId; }
 	public void setUniqueId(Long uniqueId) { iUniqueId = uniqueId; }
@@ -108,17 +100,9 @@ public abstract class BaseInstructionalOffering implements Serializable {
 	public Boolean getNotOffered() { return iNotOffered; }
 	public void setNotOffered(Boolean notOffered) { iNotOffered = notOffered; }
 
-	@Formula("(      select sum( co.lastlike_demand +       (case when cox.lastlike_demand is null then 0 else cox.lastlike_demand end))      from %SCHEMA%.course_offering co left outer join %SCHEMA%.course_offering cox on co.demand_offering_id=cox.uniqueid       where co.instr_offr_id = uniqueid)")
-	public Integer getDemand() { return iDemand; }
-	public void setDemand(Integer demand) { iDemand = demand; }
-
 	@Formula("(select count(distinct e.student_id) from %SCHEMA%.student_class_enrl e inner join %SCHEMA%.course_offering co on co.uniqueid = e.course_offering_id where co.instr_offr_id = uniqueid)")
 	public Integer getEnrollment() { return iEnrollment; }
 	public void setEnrollment(Integer enrollment) { iEnrollment = enrollment; }
-
-	@Formula(" ( select sum(ioc.config_limit) from %SCHEMA%.instr_offering_config ioc where ioc.instr_offr_id = uniqueid ) ")
-	public Integer getLimit() { return iLimit; }
-	public void setLimit(Integer limit) { iLimit = limit; }
 
 	@Column(name = "uid_rolled_fwd_from", nullable = true, length = 20)
 	public Long getUniqueIdRolledForwardFrom() { return iUniqueIdRolledForwardFrom; }

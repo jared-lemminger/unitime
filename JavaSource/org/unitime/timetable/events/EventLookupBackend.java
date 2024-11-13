@@ -362,7 +362,7 @@ public class EventLookupBackend extends EventAction<EventLookupRpcRequest, GwtRp
 								"select distinct cc.course.instructionalOffering.uniqueId, (case when g.uniqueId is null then x.uniqueId else g.uniqueId end), z.uniqueId " +
 								"from CurriculumReservation r inner join r.areas ra left outer join r.configurations g left outer join r.classes z left outer join z.schedulingSubpart.instrOfferingConfig x " +
 								"left outer join r.majors rm left outer join r.classifications rc, " +
-								"CurriculumCourse cc inner join cc.classification.curriculum.majors cm " +
+								"CurriculumCourse cc left outer join cc.classification.curriculum.majors cm " +
 								"where (cc.classification.curriculum.uniqueId = :resourceId or cc.classification.uniqueId = :resourceId) " +
 								"and cc.course.instructionalOffering = r.instructionalOffering and ra = cc.classification.curriculum.academicArea "+
 								"and (rm is null or rm = cm) and (rc is null or rc = cc.classification.academicClassification)",
@@ -1316,7 +1316,7 @@ public class EventLookupBackend extends EventAction<EventLookupRpcRequest, GwtRp
 	                    		.limit(limit <= 0 ? -1 : 1 + limit - meetings.size())
 	                    		.query(hibSession).list());
 
-					if (contact && (limit <= 0 || meetings.size() < limit))
+					if (contact && (limit <= 0 || meetings.size() < limit) && ApplicationProperty.EventPersonalConsiderAdditionalEmails.isTrue())
 						meetings.addAll(query.select("distinct m")
                     		.from("EventContact c")
                     		.where("c.externalUniqueId = :externalId")
@@ -1927,6 +1927,7 @@ public class EventLookupBackend extends EventAction<EventLookupRpcRequest, GwtRp
 						location.setIgnoreRoomCheck(m.getLocation().isIgnoreRoomCheck());
 						location.setDisplayName(m.getLocation().getDisplayName());
 						location.setPartitionParentId(m.getLocation().getPartitionParentId());
+						location.setEventEmail(m.getLocation().getEventEmail());
 						meeting.setLocation(location);
 					}
 					if (request.getEventFilter().hasOptions("flag") && request.getEventFilter().getOptions("flag").contains("Conflicts")) {
@@ -2565,6 +2566,7 @@ public class EventLookupBackend extends EventAction<EventLookupRpcRequest, GwtRp
 								location.setIgnoreRoomCheck(m.getLocation().isIgnoreRoomCheck());
 								location.setDisplayName(m.getLocation().getDisplayName());
 								location.setPartitionParentId(m.getLocation().getPartitionParentId());
+								location.setEventEmail(m.getLocation().getEventEmail());
 								meeting.setLocation(location);
 							}
 							if (context.hasPermission(Right.EventCanViewMeetingContacts)) {
@@ -2819,6 +2821,7 @@ public class EventLookupBackend extends EventAction<EventLookupRpcRequest, GwtRp
 									location.setIgnoreRoomCheck(rp.getRoom().isIgnoreRoomCheck());
 									location.setDisplayName(rp.getRoom().getDisplayName());
 									location.setPartitionParentId(rp.getRoom().getPartitionParentId());
+									location.setEventEmail(rp.getRoom().effectiveEventEmail());
 									meeting.setLocation(location);
 									event.addMeeting(meeting);
 				    			}
@@ -2929,6 +2932,7 @@ public class EventLookupBackend extends EventAction<EventLookupRpcRequest, GwtRp
 		resource.setIgnoreRoomCheck(location.isIgnoreRoomCheck());
 		resource.setDisplayName(location.getDisplayName());
 		resource.setPartitionParentId(location.getPartitionParentId());
+		resource.setEventEmail(location.effectiveEventEmail());
 		
 		Calendar calendar = Calendar.getInstance();
         for (int day = 0; day < Constants.DAY_CODES.length; day++)

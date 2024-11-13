@@ -142,6 +142,7 @@
 		<s:hidden name="form.roomRatio"/>
 		<s:hidden name="form.lms"/>
 		<s:hidden name="form.fundingDept"/>
+		<s:hidden name="form.splitAttendance"/>
 		<TR>
 			<TD><loc:message name="propertyEnrollment"/></TD>
 			<TD><s:property value="form.enrollment"/></TD>
@@ -179,7 +180,22 @@
 				<TD><loc:message name="propertyRoomRatio"/></TD>
 				<TD>
 					<s:property value="form.roomRatio"/>
-					&nbsp;&nbsp;&nbsp;&nbsp; ( <loc:message name="propertyMinimumRoomCapacity"/> <s:property value="form.minRoomLimit"/> )
+					&nbsp;&nbsp;&nbsp;&nbsp; ( <loc:message name="propertyMinimumRoomCapacity"/> <s:property value="form.minRoomLimit"/>
+					<s:if test="form.nbrRooms > 1">
+						<s:if test="form.splitAttendance == true"><loc:message name="descClassMultipleRoomsSplitAttendance"/></s:if><s:else><loc:message name="descClassMultipleRoomsAlternativeAttendance"/></s:else>
+					</s:if>)
+				</TD>
+			</TR>
+		</s:if>
+		
+		<s:if test="form.nbrRooms > 1">
+			<TR>
+				<TD><loc:message name="propertyRoomSplitAttendance"/></TD>
+				<TD><s:if test="form.splitAttendance == true">
+						<loc:message name="descriptionClassMultipleRoomsSplitAttendance"/>
+					</s:if><s:else>
+						<loc:message name="descriptionClassMultipleRoomsAlternativeAttendance"/>
+					</s:else>
 				</TD>
 			</TR>
 		</s:if>
@@ -208,8 +224,15 @@
 			<TD>
 				<s:hidden name="form.datePatternEditable"/>
 				<s:if test="form.datePatternEditable == true">
+					<tt:propertyEquals name="unitime.classEdit.searchableDatePattern" value="true">
+					<span id="UniTimeGWT:SearchableListBox">
+					<s:select name="form.datePattern" list="#request.datePatternList" listKey="id" listValue="value"
+						style="min-width:200px;" onchange="var op2Obj = $doc.getElementById('op2'); if (op2Obj!=null) { op2Obj.value='updateDatePattern'; $doc.forms[0].submit(); };"/>
+					</span>
+					</tt:propertyEquals><tt:propertyNotEquals name="unitime.classEdit.searchableDatePattern" value="true">
 					<s:select name="form.datePattern" list="#request.datePatternList" listKey="id" listValue="value"
 						style="min-width:200px;" onchange="datePatternChanged();"/>
+					</tt:propertyNotEquals>
 					<img style="cursor: pointer;" src="images/calendar.png" border="0" onclick="showGwtDialog('Preview of '+classEdit_form_datePattern.options[classEdit_form_datePattern.selectedIndex].text, 'dispDatePattern.action?id='+classEdit_form_datePattern.value+'&classId='+classEdit_form_classId.value,'840','520');">
 				</s:if>
 				<s:else>

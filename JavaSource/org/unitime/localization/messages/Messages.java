@@ -23,5 +23,6 @@ package org.unitime.localization.messages;
  * @author Tomas Muller
  */
 public interface Messages extends org.unitime.timetable.gwt.resources.Messages {
+	@DefaultMessage("{0}({2}): {1}")
 	public String translateMessage(String name, String defaultMessage, Object... arguments);
 }

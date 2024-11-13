@@ -60,6 +60,7 @@ import org.hibernate.query.ReturnableType;
 import org.hibernate.query.sqm.function.NamedSqmFunctionDescriptor;
 import org.hibernate.query.sqm.produce.function.FunctionReturnTypeResolver;
 import org.hibernate.query.sqm.produce.function.StandardArgumentsValidators;
+import org.hibernate.query.sqm.sql.SqmToSqlAstConverter;
 import org.hibernate.query.sqm.tree.SqmTypedNode;
 import org.hibernate.service.ServiceRegistry;
 import org.hibernate.service.spi.ServiceBinding;
@@ -100,12 +101,12 @@ public class HibernateUtil {
     public static String getProperty(Properties properties, String name) {
         String value = properties.getProperty(name);
         if (value!=null) {
-            sLog.debug("   -- " + name + "=" + value);
+            sLog.debug("  -- " + name + "=" + value);
         	return value;
         }
-        sLog.debug("   -- using application properties for " + name);
+        sLog.debug("    -- using application properties for " + name);
         value = ApplicationProperties.getProperty(name);
-        sLog.debug("     -- " + name + "=" + value);
+        sLog.debug("  -- " + name + "=" + value);
         return value;
     }
     
@@ -152,7 +153,7 @@ public class HibernateUtil {
         else if ("org.hibernate.dialect.Oracle10gDialect".equals(dialect))
         	dialect = OracleDialect.class.getName();
         if (dialect!=null) {
-        	config.getConfigurationValues().put("dialect", dialect);
+        	sLog.debug("  -- dialect: " + dialect);
         	config.getConfigurationValues().put("hibernate.dialect", dialect);
         }
 
@@ -200,10 +201,13 @@ public class HibernateUtil {
             }
         }
         
-        String default_schema = getProperty(properties, "default_schema");
-        if (default_schema != null)
-        	config.getConfigurationValues().put("default_schema", default_schema);
-        else
+        String default_schema = getProperty(properties, "hibernate.default_schema");
+        if (default_schema == null)
+        	default_schema = getProperty(properties, "default_schema");
+        if (default_schema != null) {
+        	sLog.debug("  -- default_schema: " + default_schema);
+        	config.getConfigurationValues().put("hibernate.default_schema", default_schema);
+        } else
         	default_schema = "timetable";
         
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
@@ -231,7 +235,7 @@ public class HibernateUtil {
         }
 
         MetadataBuilder metaBuild = new MetadataSources(registry).getMetadataBuilder();
-        Class d = Class.forName((String)config.getConfigurationValues().get("dialect"));
+        Class d = Class.forName((String)config.getConfigurationValues().get("hibernate.dialect"));
         addOperations(metaBuild, d);
         
         Metadata meta = metaBuild.build();
@@ -275,7 +279,7 @@ public class HibernateUtil {
         else if ("org.hibernate.dialect.Oracle10gDialect".equals(dialect))
         	dialect = OracleDialect.class.getName();
         if (dialect!=null) {
-        	config.getConfigurationValues().put("dialect", dialect);
+        	sLog.debug("  -- dialect: " + dialect);
         	config.getConfigurationValues().put("hibernate.dialect", dialect);
         }
 
@@ -321,8 +325,10 @@ public class HibernateUtil {
         }
 
         String default_schema = ApplicationProperty.DatabaseSchema.value();
-        if (default_schema != null)
-        	config.getConfigurationValues().put("default_schema", default_schema);
+        if (default_schema != null) {
+        	sLog.debug("  -- default_schema: " + default_schema);
+        	config.getConfigurationValues().put("hibernate.default_schema", default_schema);
+        }
         
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AnnotationTypeFilter(Entity.class));
@@ -350,7 +356,7 @@ public class HibernateUtil {
 
         
         MetadataBuilder metaBuild = new MetadataSources(registry).getMetadataBuilder();
-        Class d = Class.forName((String)config.getConfigurationValues().get("dialect"));
+        Class d = Class.forName((String)config.getConfigurationValues().get("hibernate.dialect"));
         addOperations(metaBuild, d);
         
         Metadata meta = metaBuild.build();
@@ -377,7 +383,7 @@ public class HibernateUtil {
     }
 
     public static String getDatabaseName() {
-    	String schema = (String)getHibernateContext().getConfig().getConfigurationValues().get("default_schema");
+    	String schema = (String)getHibernateContext().getConfig().getConfigurationValues().get("hibernate.default_schema");
         String url = getConnectionUrl();
         if (url==null) return "N/A";
         if (url.startsWith("jdbc:oracle:")) {
@@ -424,7 +430,7 @@ public class HibernateUtil {
     
     public static Class<?> getDialect() {
     	try {
-    		return Class.forName((String)getHibernateContext().getConfig().getConfigurationValues().get("dialect"));
+    		return Class.forName((String)getHibernateContext().getConfig().getConfigurationValues().get("hibernate.dialect"));
     	} catch (ClassNotFoundException e) {
     		return null;
     	}
@@ -447,20 +453,11 @@ public class HibernateUtil {
     }
     
     public static String addDate(String dateSQL, String incrementSQL) {
-        if (isMySQL() || isPostgress())
-            return "adddate("+dateSQL+","+incrementSQL+")";
-        else
-        	return dateSQL + " + numtodsinterval(" + incrementSQL + ", 'day')";
-//            return "(" + dateSQL+(incrementSQL.startsWith("+")||incrementSQL.startsWith("-")?"":"+")+incrementSQL + ")";
+        return "adddate("+dateSQL+","+incrementSQL+")";
     }
     
     public static String dayOfWeek(String field) {
-    	if (isOracle())
-    		return "weekday(" + field + ")";
-    	else if (isPostgress())
-    		return "extract(isodow from " + field + ") - 1";
-    	else
-    		return "weekday(" + field + ")";
+    	return "weekday(" + field + ")";
     }
     
     public static String date(Date date) {
@@ -474,11 +471,14 @@ public class HibernateUtil {
     	if (PostgreSQLDialect.class.isAssignableFrom(dialect)) {
     		builder.applySqlFunction("adddate", PostgreSQLAddDateFunction.INSTANCE);
     		builder.applySqlFunction("days", PostgreSQLDaysFunction.INSTANCE);
+    		builder.applySqlFunction("weekday", PostgreSQLWeekdayFunction.INSTANCE);
         } else if (OracleDialect.class.isAssignableFrom(dialect)) {
         	builder.applySqlFunction("weekday", OracleWeekdayFunction.INSTANCE);
         	builder.applySqlFunction("days", OracleDaysFunction.INSTANCE);
+        	builder.applySqlFunction("adddate", OracleAddDateFunction.INSTANCE);
         } else if (MySQLDialect.class.isAssignableFrom(dialect)) {
         	builder.applySqlFunction("days", MySQLDaysFunction.INSTANCE);
+        	builder.applySqlFunction("weekday", MySQLWeekdayFunction.INSTANCE);
         }
     }
     
@@ -489,7 +489,7 @@ public class HibernateUtil {
     	}
     	
     	@Override
-    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, SqlAstTranslator<?> translator) {
+    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, ReturnableType<?> returnType, SqlAstTranslator<?> translator) {
     		// ?1 + (?2) * interval '1 day'
     		translator.render(sqlAstArguments.get(0), SqlAstNodeRenderingMode.DEFAULT);
     		sqlAppender.appendSql(" + (");
@@ -503,7 +503,7 @@ public class HibernateUtil {
     	public OracleWeekdayFunction() {
     		super("weekday", false, StandardArgumentsValidators.exactly(1), new FunctionReturnTypeResolver() {
     			@Override
-				public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
+				public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, SqmToSqlAstConverter converter, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
 					return typeConfiguration.getBasicTypeRegistry().resolve( StandardBasicTypes.INTEGER);
 				}
 				@Override
@@ -514,7 +514,7 @@ public class HibernateUtil {
     	}
     	
     	@Override
-    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, SqlAstTranslator<?> translator) {
+    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, ReturnableType<?> returnType, SqlAstTranslator<?> translator) {
     		// (trunc(?) - trunc(?, 'IW'));
     		sqlAppender.appendSql("(trunc(");
     		translator.render(sqlAstArguments.get(0), SqlAstNodeRenderingMode.DEFAULT);
@@ -529,7 +529,7 @@ public class HibernateUtil {
     	public OracleDaysFunction() {
     		super("days", false, StandardArgumentsValidators.exactly(2), new FunctionReturnTypeResolver() {
     			@Override
-				public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
+				public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, SqmToSqlAstConverter converter, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
 					return typeConfiguration.getBasicTypeRegistry().resolve( StandardBasicTypes.INTEGER);
 				}
 				@Override
@@ -540,7 +540,7 @@ public class HibernateUtil {
     	}
     	
     	@Override
-    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, SqlAstTranslator<?> translator) {
+    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, ReturnableType<?> returnType, SqlAstTranslator<?> translator) {
     		// (trunc(?) - trunc(?))
     		sqlAppender.appendSql("(trunc(");
     		translator.render(sqlAstArguments.get(0), SqlAstNodeRenderingMode.DEFAULT);
@@ -550,12 +550,28 @@ public class HibernateUtil {
     	}
     }
     
+    public static class OracleAddDateFunction extends NamedSqmFunctionDescriptor {
+    	public static final OracleAddDateFunction INSTANCE = new OracleAddDateFunction();
+    	public OracleAddDateFunction() {
+    		super("adddate", false, StandardArgumentsValidators.exactly(2), null);
+    	}
+    	
+    	@Override
+    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, ReturnableType<?> returnType, SqlAstTranslator<?> translator) {
+    		// ?1 + (?2)
+    		translator.render(sqlAstArguments.get(0), SqlAstNodeRenderingMode.DEFAULT);
+    		sqlAppender.appendSql(" + (");
+    		translator.render(sqlAstArguments.get(1), SqlAstNodeRenderingMode.DEFAULT);
+    		sqlAppender.appendSql(")");
+    	}
+    }
+    
     public static class MySQLDaysFunction extends NamedSqmFunctionDescriptor {
     	public static final MySQLDaysFunction INSTANCE = new MySQLDaysFunction();
     	public MySQLDaysFunction() {
     		super("days", false, StandardArgumentsValidators.exactly(2), new FunctionReturnTypeResolver() {
     			@Override
-				public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
+    			public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, SqmToSqlAstConverter converter, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
 					return typeConfiguration.getBasicTypeRegistry().resolve( StandardBasicTypes.INTEGER);
 				}
 				@Override
@@ -566,7 +582,7 @@ public class HibernateUtil {
     	}
     	
     	@Override
-    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, SqlAstTranslator<?> translator) {
+    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, ReturnableType<?> returnType, SqlAstTranslator<?> translator) {
     		// datediff(?, ?)
     		sqlAppender.appendSql("datediff(");
     		translator.render(sqlAstArguments.get(0), SqlAstNodeRenderingMode.DEFAULT);
@@ -581,7 +597,7 @@ public class HibernateUtil {
     	public PostgreSQLDaysFunction() {
     		super("days", false, StandardArgumentsValidators.exactly(2), new FunctionReturnTypeResolver() {
     			@Override
-				public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
+    			public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, SqmToSqlAstConverter converter, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
 					return typeConfiguration.getBasicTypeRegistry().resolve( StandardBasicTypes.INTEGER);
 				}
 				@Override
@@ -592,13 +608,60 @@ public class HibernateUtil {
     	}
     	
     	@Override
-    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, SqlAstTranslator<?> translator) {
+    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, ReturnableType<?> returnType, SqlAstTranslator<?> translator) {
     		// (date(?) - date(?))
     		sqlAppender.appendSql("(date(");
     		translator.render(sqlAstArguments.get(0), SqlAstNodeRenderingMode.DEFAULT);
     		sqlAppender.appendSql(") - date(");
     		translator.render(sqlAstArguments.get(1), SqlAstNodeRenderingMode.DEFAULT);
     		sqlAppender.appendSql("))");
+    	}
+    }
+    
+    public static class MySQLWeekdayFunction extends NamedSqmFunctionDescriptor {
+    	public static final MySQLWeekdayFunction INSTANCE = new MySQLWeekdayFunction();
+    	public MySQLWeekdayFunction() {
+    		super("weekday", false, StandardArgumentsValidators.exactly(1), new FunctionReturnTypeResolver() {
+    			@Override
+				public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, SqmToSqlAstConverter converter, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
+					return typeConfiguration.getBasicTypeRegistry().resolve( StandardBasicTypes.INTEGER);
+				}
+				@Override
+				public BasicValuedMapping resolveFunctionReturnType(Supplier<BasicValuedMapping> impliedTypeAccess, List<? extends SqlAstNode> arguments) {
+					return impliedTypeAccess.get();
+				}
+			});
+    	}
+    	
+    	@Override
+    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, ReturnableType<?> returnType, SqlAstTranslator<?> translator) {
+    		sqlAppender.appendSql("weekday(");
+    		translator.render(sqlAstArguments.get(0), SqlAstNodeRenderingMode.DEFAULT);
+    		sqlAppender.appendSql(")");
+    	}
+    }
+    
+    public static class PostgreSQLWeekdayFunction extends NamedSqmFunctionDescriptor {
+    	public static final PostgreSQLWeekdayFunction INSTANCE = new PostgreSQLWeekdayFunction();
+    	public PostgreSQLWeekdayFunction() {
+    		super("weekday", false, StandardArgumentsValidators.exactly(1), new FunctionReturnTypeResolver() {
+    			@Override
+				public ReturnableType<?> resolveFunctionReturnType(ReturnableType<?> impliedType, SqmToSqlAstConverter converter, List<? extends SqmTypedNode<?>> arguments, TypeConfiguration typeConfiguration) {
+					return typeConfiguration.getBasicTypeRegistry().resolve( StandardBasicTypes.INTEGER);
+				}
+				@Override
+				public BasicValuedMapping resolveFunctionReturnType(Supplier<BasicValuedMapping> impliedTypeAccess, List<? extends SqlAstNode> arguments) {
+					return impliedTypeAccess.get();
+				}
+			});
+    	}
+    	
+    	@Override
+    	public void render(SqlAppender sqlAppender, List<? extends SqlAstNode> sqlAstArguments, ReturnableType<?> returnType, SqlAstTranslator<?> translator) {
+    		// (extract(isodow from " + field + ") - 1)
+    		sqlAppender.appendSql("(extract(isodow from ");
+    		translator.render(sqlAstArguments.get(0), SqlAstNodeRenderingMode.DEFAULT);
+    		sqlAppender.appendSql(") - 1)");
     	}
     }
     

@@ -70,7 +70,11 @@ public class RoomFilterBox extends UniTimeFilterBox<RoomFilterRpcRequest> {
 	private FilterBox.CustomFilter iDepartmentFilter;
 	
 	public RoomFilterBox(AcademicSessionProvider session) {
-		super(session);
+		this(session, true);
+	}
+	
+	public RoomFilterBox(AcademicSessionProvider session, boolean init) {
+		super(session, init);
 		
 		iDepartments = new ListBox();
 		iDepartments.setMultipleSelect(false);
@@ -434,7 +438,7 @@ public class RoomFilterBox extends UniTimeFilterBox<RoomFilterRpcRequest> {
 						}
 					}
 				}
-				if (getAcademicSessionId() != null)
+				if (getAcademicSessionId() != null) {
 					init(false, getAcademicSessionId(), new Command() {
 						@Override
 						public void execute() {
@@ -442,6 +446,7 @@ public class RoomFilterBox extends UniTimeFilterBox<RoomFilterRpcRequest> {
 								showFilterPopup();
 						}
 					});
+				}
 				setAriaLabel(ARIA.roomFilter(toAriaString()));
 			}
 		});
@@ -455,6 +460,11 @@ public class RoomFilterBox extends UniTimeFilterBox<RoomFilterRpcRequest> {
 	}
 	
 	@Override
+	public void setValue(String value, boolean fireEvents) {
+		iFilter.getWidget().setValue(value, fireEvents);
+	}
+	
+	@Override
 	protected void onLoad(FilterRpcResponse result) {
 		if (!result.hasEntities()) return;
 		boolean added = false;
@@ -462,7 +472,9 @@ public class RoomFilterBox extends UniTimeFilterBox<RoomFilterRpcRequest> {
 			for (FilterBox.Filter filter: iFilter.getWidget().getFilters()) {
 				if (filter.getCommand().equals(type)) continue types;
 			}
-			iFilter.getWidget().getFilters().add(iFilter.getWidget().getFilters().size() - 5, new FilterBox.StaticSimpleFilter(type, null));
+			FilterBox.StaticSimpleFilter filter = new FilterBox.StaticSimpleFilter(type, null);
+			iFilter.getWidget().getFilters().add(iFilter.getWidget().getFilters().size() - 5, filter);
+			populateFilter(filter, result.getEntities(type));
 			added = true;
 		}
 		if (added) setValue(getValue(), false);
@@ -485,7 +497,7 @@ public class RoomFilterBox extends UniTimeFilterBox<RoomFilterRpcRequest> {
 			iDepartments.addItem(MESSAGES.itemAllDepartments(), "");
 			if (entities != null)
 				for (FilterRpcResponse.Entity entity: entities)
-					iDepartments.addItem(entity.getName() + " (" + entity.getCount() + ")", entity.getAbbreviation());
+					iDepartments.addItem(entity.getName() + (entity.getCount() > 0 ? " (" + entity.getCount() + ")" : ""), entity.getAbbreviation());
 			
 			iDepartments.setSelectedIndex(0);
 			Chip dept = getChip("department");

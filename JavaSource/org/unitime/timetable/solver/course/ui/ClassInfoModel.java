@@ -67,6 +67,7 @@ import org.unitime.timetable.model.DatePatternPref;
 import org.unitime.timetable.model.Department;
 import org.unitime.timetable.model.DepartmentalInstructor;
 import org.unitime.timetable.model.Event;
+import org.unitime.timetable.model.EventDateMapping;
 import org.unitime.timetable.model.ExactTimeMins;
 import org.unitime.timetable.model.Location;
 import org.unitime.timetable.model.PreferenceLevel;
@@ -406,6 +407,10 @@ public class ClassInfoModel implements Serializable {
             iForm.setMinRoomSize(String.valueOf(clazz.getMinRoomLimit()));
             iForm.setMaxRoomSize(null);
         }
+        if (clazz.getNbrRooms()>1 && Boolean.TRUE.equals(clazz.isRoomsSplitAttendance())) {
+            iForm.setMinRoomSize(String.valueOf(clazz.getMinRoomLimit() / clazz.getNbrRooms()));
+            iForm.setMaxRoomSize(null);
+        }
         iForm.setRoomFilter(null);
     }
     
@@ -438,9 +443,12 @@ public class ClassInfoModel implements Serializable {
         DurationModel dm = clazz.getSchedulingSubpart().getInstrOfferingConfig().getDurationModel();
         ClassTimeInfo time = (getSelectedAssignment() == null ? null : getSelectedAssignment().getTime());
         Collection<ClassRoomInfo> rooms = (getSelectedAssignment() == null ? null : getSelectedAssignment().getRooms());
+        EventDateMapping.Class2EventDateMap class2eventDates = EventDateMapping.getMapping(clazz.getSessionId());
         for (ClassAssignment date : getDates()) {
             if (dateId.equals(date.getDateId())) {
-                List<Date> dates = (time == null || !date.hasDate() ? null : dm.getDates(clazz.getSchedulingSubpart().getMinutesPerWk(), date.getDate().getDatePattern(), time.getDayCode(), time.getMinutesPerMeeting()));
+                List<Date> dates = (time == null || !date.hasDate() ? null : dm.getDates(
+                		clazz.getSchedulingSubpart().getMinutesPerWk(), date.getDate().getDatePattern(), time.getDayCode(), time.getMinutesPerMeeting(),
+                		class2eventDates));
                 iChange.addChange(
                 		new ClassAssignmentInfo(getClazz().getClazz(), (time == null ? null : new ClassTimeInfo(time, date.getDate(), dates)), date.getDate(), rooms, iChange.getAssignmentTable(), isUseRealStudents(), iConflicts), 
                 		getClassOldAssignment());
@@ -930,6 +938,7 @@ public class ClassInfoModel implements Serializable {
         	sLog.debug("Class "+getClazz().getClassName()+" has required times");
         }
 		DurationModel dm = clazz.getSchedulingSubpart().getInstrOfferingConfig().getDurationModel();
+		EventDateMapping.Class2EventDateMap class2eventDates = EventDateMapping.getMapping(clazz.getSessionId());
         for (Iterator i1=timePrefs.iterator();i1.hasNext();) {
         	TimePref timePref = (TimePref)i1.next();
         	TimePatternModel pattern = timePref.getTimePatternModel();
@@ -937,7 +946,7 @@ public class ClassInfoModel implements Serializable {
     			int minsPerMeeting = dm.getExactTimeMinutesPerMeeting(clazz.getSchedulingSubpart().getMinutesPerWk(), datePattern, pattern.getExactDays());
         		int length = ExactTimeMins.getNrSlotsPerMtg(minsPerMeeting);
         		int breakTime = ExactTimeMins.getBreakTime(minsPerMeeting); 
-        		List<Date> dates = dm.getDates(clazz.getSchedulingSubpart().getMinutesPerWk(), datePattern, pattern.getExactDays(), minsPerMeeting);
+        		List<Date> dates = dm.getDates(clazz.getSchedulingSubpart().getMinutesPerWk(), datePattern, pattern.getExactDays(), minsPerMeeting, class2eventDates);
         		ClassTimeInfo time = new ClassTimeInfo(clazz.getUniqueId(), pattern.getExactDays(),pattern.getExactStartSlot(),length,minsPerMeeting,PreferenceLevel.sIntLevelNeutral,timePref.getTimePattern(),date,breakTime,dates);
         		if (iShowStudentConflicts)
         			times.add(new ClassAssignmentInfo(clazz, time, date, null, (iChange==null?null:iChange.getAssignmentTable()), isUseRealStudents(), iConflicts));
@@ -954,7 +963,7 @@ public class ClassInfoModel implements Serializable {
                     if (onlyReq && !pref.equals(PreferenceLevel.sRequired)) {
                         pref = PreferenceLevel.sProhibited;
                     }
-                    List<Date> dates = dm.getDates(clazz.getSchedulingSubpart().getMinutesPerWk(), datePattern, pattern.getDayCode(day), timePref.getTimePattern().getMinPerMtg());
+                    List<Date> dates = dm.getDates(clazz.getSchedulingSubpart().getMinutesPerWk(), datePattern, pattern.getDayCode(day), timePref.getTimePattern().getMinPerMtg(), class2eventDates);
                     ClassTimeInfo loc = new ClassTimeInfo(
                             clazz.getUniqueId(),
                             pattern.getDayCode(day),
@@ -1224,15 +1233,19 @@ public class ClassInfoModel implements Serializable {
                   	pref.addPreferenceProlog(PreferenceLevel.sProhibited);
                 
                 
-        		// --- room size ----------------- 
-                if (room.getCapacity().intValue()<stronglyDiscouragedCapacity) {
-              		pref.addPreferenceInt(1000);
-                }
-                else if (room.getCapacity().intValue()<discouragedCapacity) {
-                    pref.addPreferenceProlog(PreferenceLevel.sStronglyDiscouraged);
-                }
-                else if (room.getCapacity().intValue()<roomCapacity) {
-                	pref.addPreferenceProlog(PreferenceLevel.sDiscouraged);
+        		// --- room size -----------------
+                if (clazz.getNbrRooms()>1 && Boolean.TRUE.equals(clazz.isRoomsSplitAttendance())) {
+                	// split attendance -> skip room check
+                } else {
+                    if (room.getCapacity().intValue()<stronglyDiscouragedCapacity) {
+                  		pref.addPreferenceInt(1000);
+                    }
+                    else if (room.getCapacity().intValue()<discouragedCapacity) {
+                        pref.addPreferenceProlog(PreferenceLevel.sStronglyDiscouraged);
+                    }
+                    else if (room.getCapacity().intValue()<roomCapacity) {
+                    	pref.addPreferenceProlog(PreferenceLevel.sDiscouraged);
+                    }
                 }
                 
                 int prefInt = pref.getPreferenceInt();
@@ -1354,6 +1367,77 @@ public class ClassInfoModel implements Serializable {
             				continue rooms;
                 		}
             		}
+                }
+                
+                if (room instanceof Room) {
+                	Room r = (Room)room;
+                	if (r.getParentRoom() != null && !r.getParentRoom().isIgnoreRoomCheck()) {
+                		if (room2events!=null) {
+                        	Set<Event> conflicts = room2events.get(r.getParentRoom().getPermanentId());
+                        	if (conflicts!=null && !conflicts.isEmpty()) {
+                    			if (room.getLabel().equals(filter)) iForm.setMessage(MSG.messageRoomNotAvailable2(room.getLabel(), period.getLongName(), conflicts.toString()));
+                				sLog.info(MSG.messageRoomNotAvailable2(room.getLabel(), period.getLongName(), conflicts.toString()));
+                				continue rooms;
+                        	}
+                        } else if (RoomAvailability.getInstance()!=null) {
+                    		Collection<TimeBlock> times = RoomAvailability.getInstance().getRoomAvailability(
+                    				r.getParentRoom().getUniqueId(),
+                                    bounds[0], bounds[1], 
+                                    RoomAvailabilityInterface.sClassType);
+                    		if (times != null && !times.isEmpty()) {
+                        		Collection<TimeBlock> timesToCheck = null;
+                        		if (!changePast || ignorePast) {
+                        			timesToCheck = new Vector();
+                        			for (TimeBlock time: times) {
+                        				if (!time.getEndTime().before(today))
+                        					timesToCheck.add(time);
+                        			}
+                        		} else {
+                        			timesToCheck = times;
+                        		}
+                        		TimeBlock time = period.overlaps(timesToCheck);
+                        		if (time!=null) {
+                        			if (room.getLabel().equals(filter)) iForm.setMessage(MSG.messageRoomNotAvailable2(room.getLabel(), period.getLongName(), time.toString()));
+                    				sLog.info(MSG.messageRoomNotAvailable2(room.getLabel(), period.getLongName(), time.toString()));
+                    				continue rooms;
+                        		}
+                    		}
+                        }
+                	}
+                	for (Room p: r.getPartitions()) {
+                		if (p.isIgnoreRoomCheck()) continue;
+                		if (room2events!=null) {
+                        	Set<Event> conflicts = room2events.get(p.getPermanentId());
+                        	if (conflicts!=null && !conflicts.isEmpty()) {
+                    			if (room.getLabel().equals(filter)) iForm.setMessage(MSG.messageRoomNotAvailable2(room.getLabel(), period.getLongName(), conflicts.toString()));
+                				sLog.info(MSG.messageRoomNotAvailable2(room.getLabel(), period.getLongName(), conflicts.toString()));
+                				continue rooms;
+                        	}
+                        } else if (RoomAvailability.getInstance()!=null) {
+                    		Collection<TimeBlock> times = RoomAvailability.getInstance().getRoomAvailability(
+                    				p.getUniqueId(),
+                                    bounds[0], bounds[1], 
+                                    RoomAvailabilityInterface.sClassType);
+                    		if (times != null && !times.isEmpty()) {
+                        		Collection<TimeBlock> timesToCheck = null;
+                        		if (!changePast || ignorePast) {
+                        			timesToCheck = new Vector();
+                        			for (TimeBlock time: times) {
+                        				if (!time.getEndTime().before(today))
+                        					timesToCheck.add(time);
+                        			}
+                        		} else {
+                        			timesToCheck = times;
+                        		}
+                        		TimeBlock time = period.overlaps(timesToCheck);
+                        		if (time!=null) {
+                        			if (room.getLabel().equals(filter)) iForm.setMessage(MSG.messageRoomNotAvailable2(room.getLabel(), period.getLongName(), time.toString()));
+                    				sLog.info(MSG.messageRoomNotAvailable2(room.getLabel(), period.getLongName(), time.toString()));
+                    				continue rooms;
+                        		}
+                    		}
+                        }
+                	}
                 }
 
                 rooms.addElement(new ClassRoomInfo(room, prefInt, note));

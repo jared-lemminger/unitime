@@ -67,7 +67,9 @@ import org.unitime.timetable.interfaces.RoomAvailabilityInterface;
 import org.unitime.timetable.model.ApplicationConfig;
 import org.unitime.timetable.model.StudentSectioningPref;
 import org.unitime.timetable.model.SolverParameterGroup.SolverType;
+import org.unitime.timetable.onlinesectioning.AcademicSessionInfo;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningServer;
+import org.unitime.timetable.onlinesectioning.model.XClassEnrollment;
 import org.unitime.timetable.solver.SolverProxy;
 import org.unitime.timetable.solver.exam.ExamSolverProxy;
 import org.unitime.timetable.solver.instructor.InstructorSchedulingProxy;
@@ -108,7 +110,7 @@ public class SolverServerImplementation extends AbstractSolverServer {
 		iLocal = local;
 		iChannel = channel;
 		iServerChannel = new ForkChannel(channel, String.valueOf(SCOPE_SERVER), "fork-" + SCOPE_SERVER);
-		iDispatcher = new RpcDispatcher(iChannel, this) {
+		iDispatcher = new UniTimeRpcDispatcher(iChannel, this) {
 			protected Object handleUpEvent(Event evt) throws Exception {
 				Object ret = super.handleUpEvent(evt);
 				switch(evt.getType()) {
@@ -358,6 +360,7 @@ public class SolverServerImplementation extends AbstractSolverServer {
 			super.refreshCourseSolution(solutionIds);
 	}
 	
+	
 	@Override
 	public void refreshCourseSolution(Long... solutionIds) {
 		try {
@@ -392,6 +395,47 @@ public class SolverServerImplementation extends AbstractSolverServer {
 			iDispatcher.callRemoteMethods(null, "refreshInstructorSolutionLocal", new Object[] { solverGroupIds }, new Class[] { Collection.class }, sAllResponses);
 		} catch (Exception e) {
 			sLog.error("Failed to refresh solution: " + e.getMessage(), e);
+		}
+	}
+	
+	public Collection<XClassEnrollment> getUnavailabilitiesFromOtherSessionsLocal(AcademicSessionInfo session, String studentExternalId) {
+		return iOnlineStudentSchedulingContainer.getUnavailabilitiesFromOtherSessions(session, studentExternalId);
+	}
+	
+	@Override
+	public Collection<XClassEnrollment> getUnavailabilitiesFromOtherSessions(AcademicSessionInfo session, String studentExternalId) {
+		try {
+			List<XClassEnrollment> unavailabilities = new ArrayList<>();
+			RspList<Collection<XClassEnrollment>> ret = iDispatcher.callRemoteMethods(null, "getUnavailabilitiesFromOtherSessionsLocal", new Object[] { session,  studentExternalId}, new Class[] { AcademicSessionInfo.class, String.class }, sAllResponses);
+			for (Rsp<Collection<XClassEnrollment>> rsp : ret)
+				if (rsp != null && rsp.getValue() != null)
+					unavailabilities.addAll(rsp.getValue());
+			return unavailabilities;
+		} catch (Exception e) {
+			sLog.error("Failed to check for student unavailabilties from other academc sessions: " + e.getMessage(), e);
+			return null;
+		}
+	}
+	
+	public float[] getCreditRangeFromOtherSessionsLocal(AcademicSessionInfo session, String studentExternalId) {
+		return iOnlineStudentSchedulingContainer.getCreditRangeFromOtherSessions(session, studentExternalId);
+	}
+	
+	@Override
+	public float[] getCreditRangeFromOtherSessions(AcademicSessionInfo session, String studentExternalId) {
+		try {
+			float[] credits = new float[] { 0, 0};
+			RspList<float[]> ret = iDispatcher.callRemoteMethods(null, "getCreditRangeFromOtherSessionsLocal", new Object[] { session,  studentExternalId}, new Class[] { AcademicSessionInfo.class, String.class }, sAllResponses);
+			for (Rsp<float[]> rsp : ret)
+				if (rsp != null && rsp.getValue() != null) {
+					float[] creds = rsp.getValue();
+					credits[0] += creds[0];
+					credits[1] += creds[1];
+				}
+			return credits;
+		} catch (Exception e) {
+			sLog.error("Failed to check for student credit from other academc sessions: " + e.getMessage(), e);
+			return null;
 		}
 	}
 	

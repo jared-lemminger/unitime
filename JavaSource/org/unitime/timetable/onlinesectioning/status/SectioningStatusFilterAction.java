@@ -427,7 +427,7 @@ public class SectioningStatusFilterAction implements OnlineSectioningAction<Filt
 			if (CONSTANTS.assignmentType().length > 18)
 				assignment.add(new Entity(18l, "Not Assigned LC", CONSTANTS.assignmentType()[18], "translated-value", CONSTANTS.assignmentType()[18]));
 			else
-				assignment.add(new Entity(18l, "Not Assigned LC", "Not Assigned Critical"));
+				assignment.add(new Entity(18l, "Not Assigned LC", "Not Assigned LC"));
 		} else if (crit2count.containsKey(CourseDemand.Critical.LC.ordinal())) {
 			if (CONSTANTS.assignmentType().length > 16)
 				assignment.add(new Entity(16l, "LC", CONSTANTS.assignmentType()[16], "translated-value", CONSTANTS.assignmentType()[16]));
@@ -441,7 +441,24 @@ public class SectioningStatusFilterAction implements OnlineSectioningAction<Filt
 			if (CONSTANTS.assignmentType().length > 18)
 				assignment.add(new Entity(18l, "Not Assigned LC", CONSTANTS.assignmentType()[18], "translated-value", CONSTANTS.assignmentType()[18]));
 			else
-				assignment.add(new Entity(18l, "Not Assigned LC", "Not Assigned Critical"));
+				assignment.add(new Entity(18l, "Not Assigned LC", "Not Assigned LC"));
+		}
+		if (server instanceof StudentSolver) {
+			String visitingStudentsFilter = server.getConfig().getProperty("Load.VisitingStudentFilter");
+			if (visitingStudentsFilter != null && !visitingStudentsFilter.isEmpty()) {
+				if (CONSTANTS.assignmentType().length > 19)
+					assignment.add(new Entity(19l, "Visiting F2F", CONSTANTS.assignmentType()[19], "translated-value", CONSTANTS.assignmentType()[19]));
+				else
+					assignment.add(new Entity(19l, "Visiting F2F", "Visiting F2F"));
+				if (CONSTANTS.assignmentType().length > 20)
+					assignment.add(new Entity(20l, "Assigned Visiting F2F", CONSTANTS.assignmentType()[20], "translated-value", CONSTANTS.assignmentType()[20]));
+				else
+					assignment.add(new Entity(20l, "Assigned Visiting F2F", "Assigned Visiting F2F"));
+				if (CONSTANTS.assignmentType().length > 21)
+					assignment.add(new Entity(21l, "Not Assigned Visiting F2F", CONSTANTS.assignmentType()[21], "translated-value", CONSTANTS.assignmentType()[21]));
+				else
+					assignment.add(new Entity(21l, "Not Assigned Visiting F2F", "Not Assigned Visiting F2F"));
+			}
 		}
 		if (!(server instanceof StudentSolver))
 			assignment.add(new Entity(3l, "Wait-Listed", CONSTANTS.assignmentType()[3], "translated-value", CONSTANTS.assignmentType()[3]));
@@ -494,41 +511,51 @@ public class SectioningStatusFilterAction implements OnlineSectioningAction<Filt
 				Entity myE = new Entity(-1l, "My Students", MESSAGES.modeMyStudents(), "translated-value", MESSAGES.modeMyStudents());
 				myE.setCount(myStudents);
 				modes.add(myE);
-				int myAdvised = ((Number)query.select("count(distinct s)")
-						.where("s.uniqueId in (select ads.uniqueId from Advisor adv inner join adv.students ads where adv.externalUniqueId = :Xuser and adv.role.reference = :Xrole and adv.session.uniqueId = s.session.uniqueId) and s.advisorCourseRequests is not empty")
-						.set("Xuser", iRequest.getOption("user")).set("Xrole", iRequest.getOption("role"))
-						.exclude("mode").exclude("credit").query(helper.getHibSession()).uniqueResult()).intValue();
-				if (myAdvised > 0) {
-					Entity myA = new Entity(-1l, "My Advised", MESSAGES.modeMyStudentsAdvised(), "translated-value", MESSAGES.modeMyStudentsAdvised());
-					myA.setCount(myAdvised);
-					modes.add(myA);
-				}
-				if (myAdvised < myStudents) {
-					Entity myA = new Entity(-1l, "My Not Advised", MESSAGES.modeMyStudentsNotAdvised(), "translated-value", MESSAGES.modeMyStudentsNotAdvised());
-					myA.setCount(myStudents - myAdvised);
-					modes.add(myA);
+				if (ApplicationProperty.StudentSchedulingFilterSkipAdvisedCounts.isTrue()) {
+					modes.add(new Entity(-1l, "My Advised", MESSAGES.modeMyStudentsAdvised(), "translated-value", MESSAGES.modeMyStudentsAdvised()));
+					modes.add(new Entity(-1l, "My Not Advised", MESSAGES.modeMyStudentsNotAdvised(), "translated-value", MESSAGES.modeMyStudentsNotAdvised()));
+				} else {
+					int myAdvised = ((Number)query.select("count(distinct s)")
+							.where("s.uniqueId in (select ads.uniqueId from Advisor adv inner join adv.students ads where adv.externalUniqueId = :Xuser and adv.role.reference = :Xrole and adv.session.uniqueId = s.session.uniqueId) and s.advisorCourseRequests is not empty")
+							.set("Xuser", iRequest.getOption("user")).set("Xrole", iRequest.getOption("role"))
+							.exclude("mode").exclude("credit").query(helper.getHibSession()).uniqueResult()).intValue();
+					if (myAdvised > 0) {
+						Entity myA = new Entity(-1l, "My Advised", MESSAGES.modeMyStudentsAdvised(), "translated-value", MESSAGES.modeMyStudentsAdvised());
+						myA.setCount(myAdvised);
+						modes.add(myA);
+					}
+					if (myAdvised < myStudents) {
+						Entity myA = new Entity(-1l, "My Not Advised", MESSAGES.modeMyStudentsNotAdvised(), "translated-value", MESSAGES.modeMyStudentsNotAdvised());
+						myA.setCount(myStudents - myAdvised);
+						modes.add(myA);
+					}
 				}
 			}
 		}
-		int advised = ((Number)query.select("count(distinct s)")
-				.where("s.advisorCourseRequests is not empty")
-				.exclude("mode").exclude("credit").query(helper.getHibSession()).uniqueResult()).intValue();
-		if (advised > 0) {
-			Entity adv = new Entity(-1l, "Advised", MESSAGES.modeAdvised(), "translated-value", MESSAGES.modeAdvised());
-			adv.setCount(advised);
-			modes.add(adv);
-			int notAdvised = ((Number)query.select("count(distinct s)")
-					.where("s.advisorCourseRequests is empty")
+		
+		if (ApplicationProperty.StudentSchedulingFilterSkipAdvisedCounts.isTrue()) {
+			modes.add(new Entity(-1l, "Advised", MESSAGES.modeAdvised(), "translated-value", MESSAGES.modeAdvised()));
+			modes.add(new Entity(-1l, "Not Advised", MESSAGES.modeNotAdvised(), "translated-value", MESSAGES.modeNotAdvised()));
+		} else {
+			int advised = ((Number)query.select("count(distinct s)")
+					.where("s.advisorCourseRequests is not empty")
 					.exclude("mode").exclude("credit").query(helper.getHibSession()).uniqueResult()).intValue();
-			if (notAdvised > 0) {
-				Entity notAdv = new Entity(-1l, "Not Advised", MESSAGES.modeNotAdvised(), "translated-value", MESSAGES.modeNotAdvised());
-				notAdv.setCount(notAdvised);
-				modes.add(notAdv);
+			if (advised > 0) {
+				Entity adv = new Entity(-1l, "Advised", MESSAGES.modeAdvised(), "translated-value", MESSAGES.modeAdvised());
+				adv.setCount(advised);
+				modes.add(adv);
+				int notAdvised = ((Number)query.select("count(distinct s)")
+						.where("s.advisorCourseRequests is empty")
+						.exclude("mode").exclude("credit").query(helper.getHibSession()).uniqueResult()).intValue();
+				if (notAdvised > 0) {
+					Entity notAdv = new Entity(-1l, "Not Advised", MESSAGES.modeNotAdvised(), "translated-value", MESSAGES.modeNotAdvised());
+					notAdv.setCount(notAdvised);
+					modes.add(notAdv);
+				}
 			}
 		}
 		if (!modes.isEmpty())
-			response.add("mode", modes);
-		
+			response.add("mode", modes);		
 
 		List<Entity> preferences = new ArrayList<Entity>();
 		preferences.add(new Entity(0l, "Any Preference", MESSAGES.termAnyPreference(), "translated-value", MESSAGES.termAnyPreference()));
@@ -823,35 +850,80 @@ public class SectioningStatusFilterAction implements OnlineSectioningAction<Filt
 		
 		String area = "";
 		if (request.hasOptions("area")) {
-			int id = 0;
-			for (String a: request.getOptions("area")) {
-				area += (area.isEmpty() ? "" : ",") + ":Xar" + id;
-				query.addParameter("area", "Xar" + id, a);
-				id++;
+			boolean like = false;
+			for (String d: request.getOptions("area")) {
+				if (d.indexOf('%') >= 0) { like = true; break; }
 			}
-			query.addWhere("area", "aac.academicArea.academicAreaAbbreviation in (" + area + ")");
+			if (like) {
+				String q = "";
+				int id = 0;
+				for (String a: request.getOptions("area")) {
+					q += (q.isEmpty() ? "" : " or ") + "aac.academicArea.academicAreaAbbreviation like :Xar" + id;
+					query.addParameter("area", "Xar" + id, a);
+					id++;
+				}
+				query.addWhere("area", q);
+			} else {
+				int id = 0;
+				for (String a: request.getOptions("area")) {
+					area += (area.isEmpty() ? "" : ",") + ":Xar" + id;
+					query.addParameter("area", "Xar" + id, a);
+					id++;
+				}
+				query.addWhere("area", "aac.academicArea.academicAreaAbbreviation in (" + area + ")");
+			}
 		}
 
 		if (request.hasOptions("classification")) {
-			String classf = "";
-			int id = 0;
-			for (String c: request.getOptions("classification")) {
-				classf += (classf.isEmpty() ? "" : ",") + ":Xcf" + id;
-				query.addParameter("classification", "Xcf" + id, c);
-				id++;
+			boolean like = false;
+			for (String d: request.getOptions("classification")) {
+				if (d.indexOf('%') >= 0) { like = true; break; }
 			}
-			query.addWhere("classification", "aac.academicClassification.code in (" + classf + ")");
+			if (like) {
+				String q = "";
+				int id = 0;
+				for (String c: request.getOptions("classification")) {
+					q += (q.isEmpty() ? "" : " or ") + "aac.academicClassification.code like :Xcf" + id;
+					query.addParameter("classification", "Xcf" + id, c);
+					id++;
+				}
+				query.addWhere("classification", q);
+			} else {
+				String classf = "";
+				int id = 0;
+				for (String c: request.getOptions("classification")) {
+					classf += (classf.isEmpty() ? "" : ",") + ":Xcf" + id;
+					query.addParameter("classification", "Xcf" + id, c);
+					id++;
+				}
+				query.addWhere("classification", "aac.academicClassification.code in (" + classf + ")");
+			}
 		}
 		
 		if (request.hasOptions("degree")) {
-			String degr = "";
-			int id = 0;
+			boolean like = false;
 			for (String d: request.getOptions("degree")) {
-				degr += (degr.isEmpty() ? "" : ",") + ":Xdg" + id;
-				query.addParameter("degree", "Xdg" + id, d);
-				id++;
+				if (d.indexOf('%') >= 0) { like = true; break; }
 			}
-			query.addWhere("degree", "aac.degree.reference in (" + degr + ")");
+			if (like) {
+				String q = "";
+				int id = 0;
+				for (String d: request.getOptions("degree")) {
+					q += (q.isEmpty() ? "" : " or ") + "aac.degree.reference like :Xdg" + id;
+					query.addParameter("degree", "Xdg" + id, d);
+					id++;
+				}
+				query.addWhere("degree", q);
+			} else {
+				String degr = "";
+				int id = 0;
+				for (String d: request.getOptions("degree")) {
+					degr += (degr.isEmpty() ? "" : ",") + ":Xdg" + id;
+					query.addParameter("degree", "Xdg" + id, d);
+					id++;
+				}
+				query.addWhere("degree", "aac.degree.reference in (" + degr + ")");
+			}
 		}
 		
 		if (request.hasOptions("program")) {
@@ -907,99 +979,215 @@ public class SectioningStatusFilterAction implements OnlineSectioningAction<Filt
 		}
 
 		if (request.hasOptions("major")) {
-			String major = "";
-			int id = 0;
-			for (String m: request.getOptions("major")) {
-				major += (major.isEmpty() ? "" : ",") + ":Xmj" + id;
-				query.addParameter("major", "Xmj" + id, m);
-				id++;
+			boolean like = false;
+			for (String d: request.getOptions("major")) {
+				if (d.indexOf('%') >= 0) { like = true; break; }
 			}
-			query.addWhere("major", "aac.major.code in (" + major + ")");
+			if (like) {
+				String q = "";
+				int id = 0;
+				for (String m: request.getOptions("major")) {
+					q += (q.isEmpty() ? "" : " or ") + "aac.major.code like :Xmj" + id;
+					query.addParameter("major", "Xmj" + id, m);
+					id++;
+				}
+				query.addWhere("major", q);
+			} else {
+				String major = "";
+				int id = 0;
+				for (String m: request.getOptions("major")) {
+					major += (major.isEmpty() ? "" : ",") + ":Xmj" + id;
+					query.addParameter("major", "Xmj" + id, m);
+					id++;
+				}
+				query.addWhere("major", "aac.major.code in (" + major + ")");
+			}
 		}
 		
 		if (request.hasOptions("concentration")) {
-			String conc = "";
-			int id = 0;
-			for (String m: request.getOptions("concentration")) {
-				conc += (conc.isEmpty() ? "" : ",") + ":Xcn" + id;
-				query.addParameter("concentration", "Xcn" + id, m);
-				id++;
+			boolean like = false;
+			for (String d: request.getOptions("concentration")) {
+				if (d.indexOf('%') >= 0) { like = true; break; }
 			}
-			query.addWhere("concentration", "aac.concentration.code in (" + conc + ")");
+			if (like) {
+				String q = "";
+				int id = 0;
+				for (String m: request.getOptions("concentration")) {
+					q += (q.isEmpty() ? "" : " or ") + "aac.concentration.code like :Xcn" + id;
+					query.addParameter("concentration", "Xcn" + id, m);
+					id++;
+				}
+				query.addWhere("concentration", q);
+			} else {
+				String conc = "";
+				int id = 0;
+				for (String m: request.getOptions("concentration")) {
+					conc += (conc.isEmpty() ? "" : ",") + ":Xcn" + id;
+					query.addParameter("concentration", "Xcn" + id, m);
+					id++;
+				}
+				query.addWhere("concentration", "aac.concentration.code in (" + conc + ")");
+			}
 		}
 		
 		if (request.hasOptions("minor")) {
-			String minor = "";
-			int id = 0;
-			for (String m: request.getOptions("minor")) {
-				minor += (minor.isEmpty() ? "" : ",") + ":Xmn" + id;
-				query.addParameter("minor", "Xmn" + id, m);
-				id++;
+			boolean like = false;
+			for (String d: request.getOptions("minor")) {
+				if (d.indexOf('%') >= 0) { like = true; break; }
 			}
-			if (!area.isEmpty()) {
-				query.addFrom("area", "StudentAreaClassificationMinor aam");
-				query.addWhere("area", "aam.student = s and (aac.academicArea.academicAreaAbbreviation in (" + area + ") or aam.academicArea.academicAreaAbbreviation in (" + area + "))");
-				query.addWhere("minor", "aam.minor.code in (" + minor + ")");
-			} else {
+			if (like) {
+				String q = "";
+				int id = 0;
+				for (String m: request.getOptions("minor")) {
+					q += (q.isEmpty() ? "" : " or ") + "aam.minor.code like :Xmn" + id;
+					query.addParameter("minor", "Xmn" + id, m);
+					id++;
+				}
 				query.addFrom("minor", "StudentAreaClassificationMinor aam");
-				query.addWhere("minor", "aam.student = s and aam.minor.code in (" + minor + ")");
-			}
+				query.addWhere("minor", "aam.student = s and (" + q + ")");
+			} else {
+				String minor = "";
+				int id = 0;
+				for (String m: request.getOptions("minor")) {
+					minor += (minor.isEmpty() ? "" : ",") + ":Xmn" + id;
+					query.addParameter("minor", "Xmn" + id, m);
+					id++;
+				}
+				if (!area.isEmpty()) {
+					query.addFrom("area", "StudentAreaClassificationMinor aam");
+					query.addWhere("area", "aam.student = s and (aac.academicArea.academicAreaAbbreviation in (" + area + ") or aam.academicArea.academicAreaAbbreviation in (" + area + "))");
+					query.addWhere("minor", "aam.minor.code in (" + minor + ")");
+				} else {
+					query.addFrom("minor", "StudentAreaClassificationMinor aam");
+					query.addWhere("minor", "aam.student = s and aam.minor.code in (" + minor + ")");
+				}
+			}				
 		}
 		
 		int gid = 0;
 		if (request.hasOptions("group")) {
-			query.addFrom("group", "StudentGroup g");
-			String group = "";
-			for (String g: request.getOptions("group")) {
-				group += (group.isEmpty() ? "" : ",") + ":Xgr" + gid;
-				query.addParameter("group", "Xgr" + gid, g);
-				gid++;
+			boolean like = false;
+			for (String d: request.getOptions("group")) {
+				if (d.indexOf('%') >= 0) { like = true; break; }
 			}
-			query.addWhere("group", "g in elements(s.groups) and g.groupAbbreviation in (" + group + ")");
+			query.addFrom("group", "StudentGroup g");
+			if (like) {
+				String q = "";
+				int id = 0;
+				for (String g: request.getOptions("group")) {
+					q += (q.isEmpty() ? "" : " or ") + "g.groupAbbreviation like :Xgr" + id;
+					query.addParameter("group", "Xgr" + gid, g);
+					id++;
+				}
+				query.addWhere("group", "g in elements(s.groups) and (" + q + ")");
+			} else {
+				String group = "";
+				for (String g: request.getOptions("group")) {
+					group += (group.isEmpty() ? "" : ",") + ":Xgr" + gid;
+					query.addParameter("group", "Xgr" + gid, g);
+					gid++;
+				}
+				query.addWhere("group", "g in elements(s.groups) and g.groupAbbreviation in (" + group + ")");
+			}
 		}
 		
 		for (String type: groupTypes) {
 			if (request.hasOptions(type)) {
-				query.addFrom(type, "StudentGroup g_" + type);
-				String group = "";
-				for (String g: request.getOptions(type)) {
-					group += (group.isEmpty() ? "" : ",") + ":Xgr" + gid;
-					query.addParameter(type, "Xgr" + gid, g);
-					gid++;
+				boolean like = false;
+				for (String d: request.getOptions(type)) {
+					if (d.indexOf('%') >= 0) { like = true; break; }
 				}
-				query.addWhere(type, "g_" + type + " in elements(s.groups) and g_" + type + ".groupAbbreviation in (" + group + ")");
+				query.addFrom(type, "StudentGroup g_" + type);
+				if (like) {
+					String q = "";
+					for (String g: request.getOptions(type)) {
+						q += (q.isEmpty() ? "" : " or ") + "g_" + type + ".groupAbbreviation like :Xgr" + gid;
+						query.addParameter(type, "Xgr" + gid, g);
+						gid++;
+					}
+					query.addWhere(type, "g_" + type + " in elements(s.groups) and lower(g_" + type + ".type.reference) = :Xgr" + gid + " and (" + q + ")");
+					query.addParameter(type, "Xgr" + gid, type.toLowerCase());
+					gid++;
+				} else {
+					String group = "";
+					for (String g: request.getOptions(type)) {
+						group += (group.isEmpty() ? "" : ",") + ":Xgr" + gid;
+						query.addParameter(type, "Xgr" + gid, g);
+						gid++;
+					}
+					query.addWhere(type, "g_" + type + " in elements(s.groups) and g_" + type + ".groupAbbreviation in (" + group + ")");
+				}
 			}
 		}
 		
 		if (request.hasOptions("accommodation")) {
-			query.addFrom("accommodation", "StudentAccomodation a");
-			String acc = "";
-			int id = 0;
-			for (String a: request.getOptions("accommodation")) {
-				acc += (acc.isEmpty() ? "" : ",") + ":Xacc" + id;
-				query.addParameter("accommodation", "Xacc" + id, a);
-				id++;
+			boolean like = false;
+			for (String d: request.getOptions("accommodation")) {
+				if (d.indexOf('%') >= 0) { like = true; break; }
 			}
-			query.addWhere("accommodation", "a in elements(s.accomodations) and a.abbreviation in (" + acc + ")");
+			query.addFrom("accommodation", "StudentAccomodation a");
+			if (like) {
+				String q = "";
+				int id = 0;
+				for (String a: request.getOptions("accommodation")) {
+					q += (q.isEmpty() ? "" : " or ") + "a.abbreviation like :Xacc" + id;
+					query.addParameter("accommodation", "Xacc" + id, a);
+					id++;
+				}
+				query.addWhere("accommodation", "a in elements(s.accomodations) and (" + q + ")");
+			} else {
+				String acc = "";
+				int id = 0;
+				for (String a: request.getOptions("accommodation")) {
+					acc += (acc.isEmpty() ? "" : ",") + ":Xacc" + id;
+					query.addParameter("accommodation", "Xacc" + id, a);
+					id++;
+				}
+				query.addWhere("accommodation", "a in elements(s.accomodations) and a.abbreviation in (" + acc + ")");
+			}
 		}
 
 		if (request.hasOptions("status")) {
-			String status = "";
-			int id = 0;
-			boolean hasDefault = false;
-			for (String s: request.getOptions("status")) {
-				if ("Not Set".equals(s)) { hasDefault = true; continue; }
-				status += (status.isEmpty() ? "" : ",") + ":Xst" + id;
-				query.addParameter("status", "Xst" + id, s);
-				id++;
+			boolean like = false;
+			for (String d: request.getOptions("status")) {
+				if (d.indexOf('%') >= 0) { like = true; break; }
 			}
-			if (id > 0) {
-				if (hasDefault)
-					query.addWhere("status", "s.sectioningStatus is null or s.sectioningStatus.reference in (" + status + ")");
-				else
-					query.addWhere("status", "s.sectioningStatus.reference in (" + status + ")");
-			} else if (hasDefault) {
-				query.addWhere("status", "s.sectioningStatus is null");
+			if (like) {
+				String q = "";
+				int id = 0;
+				boolean hasDefault = false;
+				for (String s: request.getOptions("status")) {
+					if ("Not Set".equals(s)) { hasDefault = true; continue; }
+					q += (q.isEmpty() ? "" : " or ") + "s.sectioningStatus.reference like :Xst" + id;
+					query.addParameter("status", "Xst" + id, s);
+					id++;
+				}
+				if (id > 0) {
+					if (hasDefault)
+						query.addWhere("status", "s.sectioningStatus is null or " + q);
+					else
+						query.addWhere("status", q);
+				} else if (hasDefault) {
+					query.addWhere("status", "s.sectioningStatus is null");
+				}
+			} else {
+				String status = "";
+				int id = 0;
+				boolean hasDefault = false;
+				for (String s: request.getOptions("status")) {
+					if ("Not Set".equals(s)) { hasDefault = true; continue; }
+					status += (status.isEmpty() ? "" : ",") + ":Xst" + id;
+					query.addParameter("status", "Xst" + id, s);
+					id++;
+				}
+				if (id > 0) {
+					if (hasDefault)
+						query.addWhere("status", "s.sectioningStatus is null or s.sectioningStatus.reference in (" + status + ")");
+					else
+						query.addWhere("status", "s.sectioningStatus.reference in (" + status + ")");
+				} else if (hasDefault) {
+					query.addWhere("status", "s.sectioningStatus is null");
+				}
 			}
 		}
 

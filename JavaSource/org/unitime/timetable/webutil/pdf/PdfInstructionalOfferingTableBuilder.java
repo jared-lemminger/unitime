@@ -641,9 +641,9 @@ public class PdfInstructionalOfferingTableBuilder extends WebInstructionalOfferi
         	DurationModel dm = clazz.getSchedulingSubpart().getInstrOfferingConfig().getDurationModel();
         	Integer ah = dm.getArrangedHours(clazz.getSchedulingSubpart().getMinutesPerWk(), clazz.effectiveDatePattern());
             if (ah == null) {
-                addText(cell, "Arr Hrs", false, false, Element.ALIGN_CENTER, color, true);
+                addText(cell, MSG.arrHrs(), false, false, Element.ALIGN_CENTER, color, true);
             } else {
-                addText(cell, "Arr "+ah+" Hrs", false, false, Element.ALIGN_CENTER, color, true);
+                addText(cell, MSG.arrHrsN(ah), false, false, Element.ALIGN_CENTER, color, true);
             }
         }
         return cell;
@@ -789,7 +789,7 @@ public class PdfInstructionalOfferingTableBuilder extends WebInstructionalOfferi
 	    	SchedulingSubpart ss = (SchedulingSubpart) prefGroup;
 	    	boolean unlimited = ss.getInstrOfferingConfig().isUnlimitedEnrollment().booleanValue();
 	    	if (!unlimited) {
-		    	int limit = (ss.getLimit()==null?0:ss.getLimit().intValue());
+	    		int limit = ss.getLimit();
 		    	int maxExpCap = ss.getMaxExpectedCapacity(); 
 		    	if (limit==maxExpCap)
 		    		addText(cell, String.valueOf(limit), false, false, Element.ALIGN_RIGHT, color, true);
@@ -1071,14 +1071,12 @@ public class PdfInstructionalOfferingTableBuilder extends WebInstructionalOfferi
     		Class_ aClass = (Class_) prefGroup;
     		if (aClass.getNbrRooms()!=null && aClass.getNbrRooms().intValue()!=1) {
     			if (aClass.getNbrRooms().intValue()==0)
-    				addText(cell, "N/A", false, true, Element.ALIGN_RIGHT, color, true);
-    			else {
-    				String text = aClass.getNbrRooms().toString();
-    				text += " at ";
-    				if (aClass.getRoomRatio() != null)
-    					text += sRoomRatioFormat.format(aClass.getRoomRatio().floatValue());
-    				else
-    					text += "0";
+    				addText(cell, MSG.notApplicable(), false, true, Element.ALIGN_RIGHT, color, true);
+    			else if (Boolean.TRUE.equals(aClass.isRoomsSplitAttendance())) {
+    				String text = MSG.cellNbrRoomsAndRoomRatioSlitAttendance(aClass.getNbrRooms(), aClass.getRoomRatio() == null ? "0" : sRoomRatioFormat.format(aClass.getRoomRatio()));
+    				addText(cell, text, false, false, Element.ALIGN_RIGHT, color, true);
+    			} else { 
+    				String text = MSG.cellNbrRoomsAndRoomRatio(aClass.getNbrRooms(), aClass.getRoomRatio() == null ? "0" : sRoomRatioFormat.format(aClass.getRoomRatio()));
     				addText(cell, text, false, false, Element.ALIGN_RIGHT, color, true);
     			}
     		} else {

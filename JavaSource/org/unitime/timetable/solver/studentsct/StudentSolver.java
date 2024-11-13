@@ -45,6 +45,7 @@ import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.logging.LogFactory;
+import org.cpsolver.coursett.model.RoomLocation;
 import org.cpsolver.ifs.assignment.Assignment;
 import org.cpsolver.ifs.assignment.DefaultSingleAssignment;
 import org.cpsolver.ifs.model.Constraint;
@@ -87,6 +88,7 @@ import org.cpsolver.studentsct.reservation.IndividualReservation;
 import org.cpsolver.studentsct.reservation.LearningCommunityReservation;
 import org.cpsolver.studentsct.reservation.Reservation;
 import org.cpsolver.studentsct.reservation.ReservationOverride;
+import org.cpsolver.studentsct.reservation.UniversalOverride;
 import org.dom4j.Document;
 import org.dom4j.Element;
 import org.dom4j.dom.DOMCDATA;
@@ -98,11 +100,14 @@ import org.joda.time.DateTimeZone;
 import org.unitime.localization.impl.Localization;
 import org.unitime.timetable.gwt.client.sectioning.SectioningReports.ReportTypeInterface;
 import org.unitime.timetable.gwt.resources.StudentSectioningMessages;
+import org.unitime.timetable.gwt.server.DayCode;
+import org.unitime.timetable.gwt.shared.ClassAssignmentInterface;
 import org.unitime.timetable.gwt.shared.CourseRequestInterface;
 import org.unitime.timetable.gwt.shared.ReservationInterface;
 import org.unitime.timetable.gwt.shared.SectioningException;
 import org.unitime.timetable.gwt.shared.ReservationInterface.IdName;
 import org.unitime.timetable.gwt.shared.ReservationInterface.OverrideType;
+import org.unitime.timetable.model.FixedCreditUnitConfig;
 import org.unitime.timetable.model.GroupOverrideReservation;
 import org.unitime.timetable.model.SectioningSolutionLog;
 import org.unitime.timetable.model.SolverPredefinedSetting;
@@ -123,20 +128,26 @@ import org.unitime.timetable.onlinesectioning.OnlineSectioningAction;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningHelper;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningLog;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningLog.Entity;
+import org.unitime.timetable.onlinesectioning.basic.GetAssignment.CourseSection;
 import org.unitime.timetable.onlinesectioning.custom.CourseDetailsProvider;
 import org.unitime.timetable.onlinesectioning.match.CourseMatcher;
 import org.unitime.timetable.onlinesectioning.match.StudentMatcher;
+import org.unitime.timetable.onlinesectioning.model.XClassEnrollment;
 import org.unitime.timetable.onlinesectioning.model.XCourse;
 import org.unitime.timetable.onlinesectioning.model.XCourseId;
 import org.unitime.timetable.onlinesectioning.model.XCourseRequest;
+import org.unitime.timetable.onlinesectioning.model.XCredit;
 import org.unitime.timetable.onlinesectioning.model.XEnrollment;
 import org.unitime.timetable.onlinesectioning.model.XEnrollments;
 import org.unitime.timetable.onlinesectioning.model.XExpectations;
 import org.unitime.timetable.onlinesectioning.model.XOffering;
+import org.unitime.timetable.onlinesectioning.model.XRequest;
 import org.unitime.timetable.onlinesectioning.model.XSchedulingRule;
 import org.unitime.timetable.onlinesectioning.model.XSchedulingRules;
+import org.unitime.timetable.onlinesectioning.model.XSection;
 import org.unitime.timetable.onlinesectioning.model.XStudent;
 import org.unitime.timetable.onlinesectioning.model.XStudentId;
+import org.unitime.timetable.onlinesectioning.model.XSubpart;
 import org.unitime.timetable.onlinesectioning.model.XTime;
 import org.unitime.timetable.server.sectioning.SectioningReportTypesBackend.ReportType;
 import org.unitime.timetable.solver.AbstractSolver;
@@ -165,6 +176,7 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
     private transient Map<Long, XOffering> iOfferingCache = null;
     private transient Map<String, Set<Long>> iInstructedOfferingsCache = null;
     private transient Map<Long, Student> iStudentCache = null;
+    private transient Map<String, Student> iStudentExtCache = null;
     private Map<String, Object> iOnlineProperties = new HashMap<String, Object>();
     private Map<String, InMemoryReport> iReports = new HashMap<String, InMemoryReport>();
     
@@ -501,10 +513,12 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 	private Map<Long, XCourse> getCourseInfoTable() {
 		if (iCourseInfoCache == null) {
 			iCourseInfoCache = new Hashtable<Long, XCourse>();
-			for (Offering offering: getModel().getOfferings())
+			for (Offering offering: getModel().getOfferings()) {
+				if (offering.isDummy()) continue;
 				for (Course course: offering.getCourses())
 					if (course != null)
 						iCourseInfoCache.put(course.getId(), new XCourse(course));
+			}
 		}
 		return iCourseInfoCache;
 	}
@@ -516,8 +530,10 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 		if (iOfferingCache == null) {
 			iOfferingCache = new Hashtable<Long, XOffering>();
 			List<LinkedSections> links = getModel().getLinkedSections();
-			for (Offering offering: getModel().getOfferings())
-				iOfferingCache.put(offering.getId(), new XOffering(offering, links));
+			for (Offering offering: getModel().getOfferings()) {
+				if (!offering.isDummy())
+					iOfferingCache.put(offering.getId(), new XOffering(offering, links));
+			}
 		}
 		return iOfferingCache;
 	}
@@ -529,6 +545,7 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 		if (iInstructedOfferingsCache == null) {
 			iInstructedOfferingsCache = new Hashtable<String, Set<Long>>();
 			for (Offering offering: getModel().getOfferings()) {
+				if (offering.isDummy()) continue;
 				for (Config config: offering.getConfigs())
 					for (Subpart subpart: config.getSubparts())
 						for (Section section: subpart.getSections())
@@ -547,6 +564,7 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 				if (student.isDummy() || student.getExternalId() == null) continue;
 				unavailbilities: for (Unavailability unavailability: student.getUnavailabilities())
 					for (Offering offering: getModel().getOfferings()) {
+						if (offering.isDummy()) continue;
 						for (Config config: offering.getConfigs())
 							for (Subpart subpart: config.getSubparts())
 								for (Section section: subpart.getSections())
@@ -581,6 +599,17 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 	
 	private void clearStudentCache() {
 		iStudentCache = null;
+		iStudentExtCache = null;
+	}
+	
+	private Map<String, Student> getStudentExtCache() {
+		if (iStudentExtCache == null) {
+			iStudentExtCache = new HashMap<>();
+			for (Student student: getModel().getStudents())
+				if (!student.isDummy() && student.getExternalId() != null && !student.getExternalId().isEmpty())
+					iStudentExtCache.put(student.getExternalId(), student);
+		}
+		return iStudentExtCache;
 	}
 	
 	@Override
@@ -637,9 +666,11 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 	
 	@Override
 	public XCourse getCourse(String courseName) {
-		for (Offering offering: getModel().getOfferings())
+		for (Offering offering: getModel().getOfferings()) {
+			if (offering.isDummy()) continue;
 			for (Course course: offering.getCourses())
 				if (course.getName().equalsIgnoreCase(courseName)) return getCourse(course.getId());
+		}
 		return null;
 	}
 
@@ -1003,7 +1034,7 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 	public Collection<ReportTypeInterface> getReportTypes() {
 		List<ReportTypeInterface> ret = new ArrayList<ReportTypeInterface>();
 		for (InMemoryReport report: new TreeSet<InMemoryReport>(iReports.values()))
-			ret.add(new ReportTypeInterface(report.getReference(), report.getName(), StudentSolver.class.getName(), "reference", report.getReference()));
+			ret.add(new ReportTypeInterface(report.getReference(), report.getName(), StudentSolver.class.getName(), false, "reference", report.getReference()));
 		return ret;
 	}
 	
@@ -1244,7 +1275,7 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 		};
 	}
 	
-	private ReservationInterface convert(Reservation reservation, Assignment<Request, Enrollment> assignment) {
+	public static ReservationInterface convert(Reservation reservation, StudentSectioningModel model, Assignment<Request, Enrollment> assignment) {
 		ReservationInterface r = null;
 		Course co = null;
 		for (Course c: reservation.getOffering().getCourses()) {
@@ -1415,7 +1446,7 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 						reservation.isAllowDisabled() != IndividualReservation.DEFAULT_ALLOW_OVERLAP);
 			}
 			
-			for (Student student: getModel().getStudents()) {
+			for (Student student: model.getStudents()) {
 				if (((IndividualReservation)reservation).getStudentIds().contains(student.getId())) {
 					ReservationInterface.IdName s = new ReservationInterface.IdName();
 					s.setId(student.getId());
@@ -1432,6 +1463,9 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 					return s1.getAbbv().compareTo(s2.getAbbv());
 				}
 			});
+		} else if (reservation instanceof UniversalOverride) {
+			r = new ReservationInterface.UniversalReservation();
+			((ReservationInterface.UniversalReservation)r).setFilter(((UniversalOverride)reservation).getFilter());
 		} else {
 			return null;
 		}
@@ -1507,7 +1541,7 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 			if (offeringId.equals(offering.getId())) {
 				List<ReservationInterface> ret = new ArrayList<ReservationInterface>();
 				for (Reservation r: offering.getReservations()) {
-					ReservationInterface res = convert(r, assignment);
+					ReservationInterface res = convert(r, getModel(), assignment);
 					if (res != null)
 						ret.add(res);
 				}
@@ -1536,5 +1570,206 @@ public class StudentSolver extends AbstractSolver<Request, Enrollment, StudentSe
 				mode,
 				StudentSchedulingRuleDAO.getInstance().getSession());
 		return (rule == null ? null : new XSchedulingRule(rule));
+	}
+	
+	@Override
+	public XSchedulingRule getSchedulingRule(Long studentId, Mode mode, boolean isAdvisor, boolean isAdmin) {
+		XStudent student = getStudent(studentId);
+		if (student == null) return null;
+		return getSchedulingRule(student, mode, isAdvisor, isAdmin);
+	}
+
+	@Override
+	public Collection<XClassEnrollment> getStudentSchedule(String studentExternalId) {
+		XStudent student = getStudentForExternalId(studentExternalId);
+		if (student == null) return null;
+		List<XClassEnrollment> ret = new ArrayList<>();
+		for (XRequest request: student.getRequests()) {
+			if (request instanceof XCourseRequest) {
+				XCourseRequest cr = (XCourseRequest)request;
+				XEnrollment e = cr.getEnrollment();
+				if (e != null) {
+					XOffering offering = getOffering(e.getOfferingId());
+					XEnrollments enrl = getEnrollments(e.getOfferingId());
+					for (XSection section: offering.getSections(e)) {
+						XClassEnrollment ce = new XClassEnrollment(e, section);
+						if (section.getParentId() != null)
+							ce.setParentSectionName(offering.getSection(section.getParentId()).getName(e.getCourseId()));
+						if (enrl != null) ce.setEnrollment(enrl.countEnrollmentsForSection(section.getSectionId()));
+						XSubpart subpart = offering.getSubpart(section.getSubpartId());
+						ce.setCredit(subpart.getCredit(e.getCourseId()));
+						Float creditOverride = section.getCreditOverride(e.getCourseId());
+						if (creditOverride != null) ce.setCredit(FixedCreditUnitConfig.formatCredit(creditOverride));
+						ret.add(ce);
+					}
+				}
+			}
+		}
+		return ret;
+	}
+
+	@Override
+	public XStudent getStudentForExternalId(String externalUniqueId) {
+		if (externalUniqueId == null || externalUniqueId.isEmpty()) return null;
+		Student student = getStudentExtCache().get(externalUniqueId);
+		return (student == null ? null : new XStudent(student, currentSolution().getAssignment()));
+	}
+
+	@Override
+	public DistanceMetric getUnavailabilityDistanceMetric() {
+		if (getModel().getStudentQuality() != null)
+			return getModel().getStudentQuality().getStudentQualityContext().getUnavailabilityDistanceMetric();
+		return getDistanceMetric();
+	}
+
+	@Override
+	public float[] getCredits(String studentExternalId) {
+		Student student = getStudentExtCache().get(studentExternalId);
+		if (student == null) return null;
+		List<Float> mins = new ArrayList<Float>();
+		List<Float> maxs = new ArrayList<Float>();
+		int nrCourses = 0;
+		float tMin = 0f, tMax = 0f, tEnrl = 0f;
+		for (Request request: student.getRequests()) {
+			if (request instanceof CourseRequest) {
+				CourseRequest cr = (CourseRequest)request;
+				Enrollment e = currentSolution().getAssignment().getValue(cr);
+				if (e != null)
+					tEnrl += e.getCredit();
+				Float min = null, max = null;
+				for (Course course: cr.getCourses()) {
+					if (course.getCredit() != null) {
+						XCredit xc = new XCredit(course.getCredit());
+						if (min == null || min > xc.getMinCredit()) min = xc.getMinCredit();
+						if (max == null || max < xc.getMaxCredit()) max = xc.getMaxCredit();
+					}
+				}
+				if (cr.isAlternative()) {
+					if (min != null) {
+						mins.add(min); maxs.add(max);
+					}
+				} else {
+					if (min != null) {
+						if (cr.isWaitlist()) {
+							tMin += min; tMax += max;
+						} else {
+							mins.add(min); maxs.add(max); nrCourses ++;
+						}
+					}
+				}
+			}
+		}
+		Collections.sort(mins);
+		Collections.sort(maxs);
+		for (int i = 0; i < nrCourses; i++) {
+			tMin += mins.get(i);
+			tMax += maxs.get(maxs.size() - i - 1);
+		}
+		return new float[] {tMin, tMax, tEnrl};
+	}
+	
+	public List<CourseSection> getUnavailabilities(Long studentId) {
+		Student student = getStudentCache().get(studentId);
+		if (student == null) return null;
+		List<CourseSection> sections = new ArrayList<CourseSection>();
+		XCourseId courseId = null;
+		for (Unavailability unavailability: student.getUnavailabilities()) {
+			if (unavailability.getSection().getSubpart() == null || unavailability.getCourseId() == null) continue;
+			if (courseId == null || !courseId.getCourseId().equals(unavailability.getCourseId())) {
+				courseId = null;
+				for (Course course: unavailability.getSection().getSubpart().getConfig().getOffering().getCourses()) {
+					if (unavailability.getCourseId().equals(course.getId())) {
+						courseId = new XCourseId(course);
+						break;
+					}
+				}
+				if (courseId == null) {
+					Course course = unavailability.getSection().getSubpart().getConfig().getOffering().getCourses().get(0);
+					courseId = new XCourseId(course);
+				}
+			}
+			sections.add(new CourseSection(
+					courseId,
+					new XSection(unavailability.getSection()),
+					unavailability.isAllowOverlap(),
+					unavailability.isTeachingAssignment()));
+		}
+		return sections;
+	}
+	
+	public List<CourseSection> fillUnavailabilitiesIn(ClassAssignmentInterface ret, Long studentId) {
+		Student student = getStudentCache().get(studentId);
+		if (student == null) return null;
+		List<CourseSection> sections = new ArrayList<CourseSection>();
+		XCourseId courseId = null;
+		String courseNote = null;
+		ClassAssignmentInterface.CourseAssignment ca = null;
+		for (Unavailability unavailability: student.getUnavailabilities()) {
+			if (unavailability.getSection().getSubpart() == null || unavailability.getCourseId() == null) continue;
+			if (courseId == null || !courseId.getCourseId().equals(unavailability.getCourseId())) {
+				ca = new ClassAssignmentInterface.CourseAssignment();
+				ca.setCanWaitList(false);
+				ca.setAssigned(true);
+				ca.setCourseId(unavailability.getCourseId());
+				courseId = null;
+				courseNote = null;
+				for (Course course: unavailability.getSection().getSubpart().getConfig().getOffering().getCourses()) {
+					if (unavailability.getCourseId().equals(course.getId())) {
+						courseId = new XCourseId(course);
+						courseNote = course.getNote();
+						break;
+					}
+				}
+				if (courseId == null) {
+					Course course = unavailability.getSection().getSubpart().getConfig().getOffering().getCourses().get(0);
+					courseId = new XCourseId(course);
+					courseNote = course.getNote();
+				}
+				ca.setSubject(courseId.getSubjectArea());
+				ca.setCourseNbr(courseId.getCourseNumber());
+				ca.setTitle(courseId.getTitle());
+				ca.setTeachingAssignment(true);
+				ca.setHasCrossList(unavailability.getSection().getSubpart().getConfig().getOffering().getCourses().size() > 0);
+				ret.add(ca);
+			}
+			ClassAssignmentInterface.ClassAssignment a = ca.addClassAssignment();
+			a.setAlternative(false);
+			a.setClassId(unavailability.getSection().getId());
+			a.setSubpart(unavailability.getSection().getSubpart().getName());
+			a.setClassNumber(unavailability.getSection().getName());
+			a.setSection(unavailability.getSection().getName(unavailability.getCourseId()));
+			a.setExternalId(unavailability.getSection().getName(unavailability.getCourseId()));
+			a.setCancelled(unavailability.getSection().isCancelled());
+			a.setLimit(new int[] { 0, unavailability.getSection().getLimit() });
+			if (unavailability.getSection().getTime() != null) {
+				for (DayCode d : DayCode.toDayCodes(unavailability.getSection().getTime().getDayCode()))
+					a.addDay(d.getIndex());
+				a.setStart(unavailability.getSection().getTime().getStartSlot());
+				a.setLength(unavailability.getSection().getTime().getLength());
+				a.setBreakTime(unavailability.getSection().getTime().getBreakTime());
+				a.setDatePattern(unavailability.getSection().getTime().getDatePatternName());
+			}
+			if (unavailability.getSection().getRooms() != null) {
+				for (RoomLocation room: unavailability.getSection().getRooms()) {
+					a.addRoom(room.getId(), room.getName());
+				}
+			}
+			for (Instructor instr: unavailability.getSection().getInstructors()) {
+				a.addInstructor(instr.getName());
+				a.addInstructoEmail(instr.getEmail() == null ? "" : instr.getEmail());
+			}
+			if (unavailability.getSection().getParent() != null)
+				a.setParentSection(unavailability.getSection().getParent().getName(unavailability.getCourseId()));
+			a.setSubpartId(unavailability.getSection().getSubpart().getId());
+			a.setHasAlternatives(false);
+			a.addNote(courseNote);
+			a.addNote(unavailability.getSection().getNote());
+			a.setCredit(unavailability.getSection().getSubpart().getCredit());
+			a.setCreditRange(unavailability.getSection().getSubpart().getCreditValue(), unavailability.getSection().getSubpart().getCreditValue());
+			a.setTeachingAssignment(true);
+			a.setInstructing(unavailability.isTeachingAssignment());
+			sections.add(new CourseSection(courseId, new XSection(unavailability.getSection()), unavailability.isAllowOverlap(), unavailability.isTeachingAssignment()));
+		}
+		return sections;
 	}
 }

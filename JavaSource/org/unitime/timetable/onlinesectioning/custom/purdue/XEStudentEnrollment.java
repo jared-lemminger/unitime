@@ -52,6 +52,7 @@ import org.unitime.timetable.gwt.shared.OnlineSectioningInterface.GradeModes;
 import org.unitime.timetable.gwt.shared.OnlineSectioningInterface.EligibilityCheck.EligibilityFlag;
 import org.unitime.timetable.gwt.shared.SectioningException;
 import org.unitime.timetable.gwt.shared.ClassAssignmentInterface.ErrorMessage;
+import org.unitime.timetable.gwt.shared.ClassAssignmentInterface.ErrorMessage.UniTimeCode;
 import org.unitime.timetable.onlinesectioning.AcademicSessionInfo;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningHelper;
 import org.unitime.timetable.onlinesectioning.OnlineSectioningLog;
@@ -236,6 +237,20 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 	protected String getAdminParameter() {
 		return ApplicationProperties.getProperty("banner.xe.adminParameter", "systemIn");
 	}
+	
+	protected String fixErrorMessage(String message) {
+		if (message == null || message.isEmpty()) return message;
+		String translate = ApplicationProperties.getProperty("banner.xe.translateMessages");
+		if (translate != null && !translate.isEmpty())
+			for (String rule: translate.split("[\n\r]+")) {
+				if (rule != null && rule.indexOf('|') >= 0) {
+					String regexp = rule.substring(0, rule.indexOf('|'));
+					String replace = rule.substring(rule.indexOf('|') + 1);
+					message = message.replaceAll(regexp, replace);
+				}
+			}
+		return message;
+	}
 
 	protected String getBannerId(XStudent student) {
 		String id = student.getExternalId();
@@ -321,11 +336,11 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 					helper.getAction().addOptionBuilder().setKey("exception").setValue(gson.toJson(response));
 					XEInterface.Error error = response.getError();
 					if (error != null && error.message != null) {
-						throw new SectioningException(error.message);
+						throw new SectioningException(fixErrorMessage(error.message));
 					} else if (error != null && error.description != null) {
-						throw new SectioningException(error.description);
+						throw new SectioningException(fixErrorMessage(error.description));
 					} else if (error != null && error.errorMessage != null) {
-						throw new SectioningException(error.errorMessage);
+						throw new SectioningException(fixErrorMessage(error.errorMessage));
 					} else {
 						throw exception;
 					}
@@ -362,9 +377,9 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 							if (pin == null || pin.isEmpty()) continue;
 						}
 						if (reason == null)
-							reason = m;
+							reason = fixErrorMessage(m);
 						else
-							reason += "<br>" + m;
+							reason += "<br>" + fixErrorMessage(m);
 					}
 				}
 				if (noreason) {
@@ -455,6 +470,9 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 					}
 				}
 			}
+		} catch (JsonParseException e) {
+			helper.warn("Failed to read Banner response: " + e.getMessage(), e);
+			throw new SectioningException("Invalid response received from Banner, likely due to a timeout. Please try again. If the problem persists, please contact the admins.");
 		} catch (SectioningException e) {
 			helper.info("Banner eligibility failed: " + e.getMessage());
 			throw e;
@@ -535,11 +553,11 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 					helper.getAction().addOptionBuilder().setKey("exception").setValue(gson.toJson(response));
 					XEInterface.Error error = response.getError();
 					if (error != null && error.message != null) {
-						throw new SectioningException(error.message);
+						throw new SectioningException(fixErrorMessage(error.message));
 					} else if (error != null && error.description != null) {
-						throw new SectioningException(error.description);
+						throw new SectioningException(fixErrorMessage(error.description));
 					} else if (error != null && error.errorMessage != null) {
-						throw new SectioningException(error.errorMessage);
+						throw new SectioningException(fixErrorMessage(error.errorMessage));
 					} else {
 						throw exception;
 					}
@@ -563,9 +581,9 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 				if (original != null && original.failureReasons != null) {
 					for (String m: original.failureReasons) {
 						if (reason == null)
-							reason = m;
+							reason = fixErrorMessage(m);
 						else
-							reason += "\n" + m;
+							reason += "\n" + fixErrorMessage(m);
 					}
 				}
 				throw new SectioningException(reason == null ? "Failed to check student registration status." : reason);
@@ -767,11 +785,11 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 					helper.getAction().addOptionBuilder().setKey("exception").setValue(gson.toJson(response));
 					XEInterface.Error error = response.getError();
 					if (error != null && error.message != null) {
-						throw new SectioningException(error.message);
+						throw new SectioningException(fixErrorMessage(error.message));
 					} else if (error != null && error.description != null) {
-						throw new SectioningException(error.description);
+						throw new SectioningException(fixErrorMessage(error.description));
 					} else if (error != null && error.errorMessage != null) {
-						throw new SectioningException(error.errorMessage);
+						throw new SectioningException(fixErrorMessage(error.errorMessage));
 					} else {
 						throw exception;
 					}
@@ -795,9 +813,9 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 				if (response != null && response.failureReasons != null) {
 					for (String m: response.failureReasons) {
 						if (reason == null)
-							reason = m;
+							reason = fixErrorMessage(m);
 						else
-							reason += "\n" + m;
+							reason += "\n" + fixErrorMessage(m);
 					}
 				}
 				throw new SectioningException(reason == null ? "Failed to enroll student." : reason);
@@ -818,10 +836,10 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 					if (reg.crnErrors != null)
 						for (XEInterface.CrnError e: reg.crnErrors) {
 							if (error == null)
-								error = e.message;
+								error = fixErrorMessage(e.message);
 							else
-								error += "\n" + e.message;
-							errors.add(new EnrollmentError(e.messageType, e.message));
+								error += "\n" + fixErrorMessage(e.message);
+							errors.add(new EnrollmentError(e.messageType, fixErrorMessage(e.message)));
 						}
 					
 					if ("Registered".equals(reg.statusDescription)) {
@@ -883,12 +901,12 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 						if (course != null)
 							for (XSection section: id2section.get(id)) {
 								if (reg.failure == null && !failed.add(id)) continue;
-								fails.add(new EnrollmentFailure(course, section, reg.failure == null ? "Enrollment failed." : reg.failure, false, new EnrollmentError("UNKNOWN", reg.failure == null ? "Enrollment failed." : reg.failure)));
+								fails.add(new EnrollmentFailure(course, section, reg.failure == null ? "Enrollment failed." : fixErrorMessage(reg.failure), false, new EnrollmentError("UNKNOWN", reg.failure == null ? "Enrollment failed." : fixErrorMessage(reg.failure))));
 							}
 						checked.add(id);
 					} else {
 						if (reg.failure != null)
-							error.add(new EnrollmentError("UNKNOWN", reg.failure));
+							error.add(new EnrollmentError("UNKNOWN", fixErrorMessage(reg.failure)));
 					}
 				}
 				String em = null;
@@ -900,10 +918,10 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 				}
 				if (response.registrationException != null) {
 					if (em == null)
-						em = response.registrationException;
+						em = fixErrorMessage(response.registrationException);
 					else
-						em += "\n" + response.registrationException;
-					error.add(new EnrollmentError("Unable to make requested changes so your schedule was not changed.".equals(response.registrationException) ? "IGNORE" : "UNKNOWN", response.registrationException));
+						em += "\n" + fixErrorMessage(response.registrationException);
+					error.add(new EnrollmentError("Unable to make requested changes so your schedule was not changed.".equals(response.registrationException) ? "IGNORE" : "UNKNOWN", fixErrorMessage(response.registrationException)));
 				}
 				for (EnrollmentRequest request: enrollments) {
 					XCourse course = request.getCourse();
@@ -989,11 +1007,11 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 								helper.getAction().addOptionBuilder().setKey("exception").setValue(gson.toJson(responseGM));
 								XEInterface.Error error = responseGM.getError();
 								if (error != null && error.message != null) {
-									throw new SectioningException(error.message);
+									throw new SectioningException(fixErrorMessage(error.message));
 								} else if (error != null && error.description != null) {
-									throw new SectioningException(error.description);
+									throw new SectioningException(fixErrorMessage(error.description));
 								} else if (error != null && error.errorMessage != null) {
-									throw new SectioningException(error.errorMessage);
+									throw new SectioningException(fixErrorMessage(error.errorMessage));
 								} else {
 									throw exception;
 								}
@@ -1015,9 +1033,9 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 							if (responseGM != null && responseGM.failureReasons != null) {
 								for (String m: responseGM.failureReasons) {
 									if (reason == null)
-										reason = m;
+										reason = fixErrorMessage(m);
 									else
-										reason += "\n" + m;
+										reason += "\n" + fixErrorMessage(m);
 								}
 							}
 							throw new SectioningException(reason == null ? "Failed to change grade modes." : reason);
@@ -1115,6 +1133,9 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 					helper.getAction().addMessageBuilder().setText(f.toString()).setLevel(OnlineSectioningLog.Message.Level.WARN);
 
 			return fails;
+		} catch (JsonParseException e) {
+			helper.warn("Failed to read Banner response: " + e.getMessage(), e);
+			throw new SectioningException("Invalid response received from Banner, likely due to a timeout. Please try again. If the problem persists, please contact the admins.");
 		} catch (SectioningException e) {
 			helper.info("Banner enrollment failed: " + e.getMessage());
 			throw e;
@@ -1179,7 +1200,7 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 				XOffering dropOffering = server.getOffering(dropEnrollment.getOfferingId());
 				if (dropOffering != null)
 					for (XSection section: dropOffering.getSections(dropEnrollment))
-						idsToDrop.add(section.getExternalId(dropEnrollment.getCourseId()));		
+						idsToDrop.add(section.getExternalId(dropEnrollment.getCourseId()));
 			}
 
 			// Remove sections that are to be kept (they are included in both enrollments)
@@ -1189,6 +1210,30 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 			// Return the new enrollment when there is no change detected
 			if (idsToAdd.isEmpty() && idsToDrop.isEmpty())
 				return enrollment;
+			
+			// Check whether remaining drops are all enabled for student scheduling
+			if (!idsToDrop.isEmpty()) {
+				if (sectioningRequest.getLastEnrollment() != null)
+					for (XSection section: sectioningRequest.getOldOffering().getSections(sectioningRequest.getLastEnrollment())) {
+						if (!section.isEnabledForScheduling() && idsToDrop.contains(section.getExternalId(course.getCourseId()))) {
+							SectioningException e = new SectioningException("Section " + section.getExternalId(course.getCourseId()) + " is not available for student scheduling.");
+							e.addError(new ErrorMessage(course.getCourseName(), section.getExternalId(course.getCourseId()), UniTimeCode.UT_DISABLED, "Section cannot be dropped."));
+							throw e;
+						}
+					}
+				if (dropEnrollment != null) {
+					XOffering dropOffering = server.getOffering(dropEnrollment.getOfferingId());
+					if (dropOffering != null)
+						for (XSection section: dropOffering.getSections(dropEnrollment)) {
+							if (!section.isEnabledForScheduling() && idsToDrop.contains(section.getExternalId(dropEnrollment.getCourseId()))) {
+								SectioningException e = new SectioningException("Section " + section.getExternalId(dropEnrollment.getCourseId()) + " is not available for student scheduling.");
+								e.addError(new ErrorMessage(dropEnrollment.getCourseName(), section.getExternalId(dropEnrollment.getCourseId()), UniTimeCode.UT_DISABLED, "Section cannot be dropped."));
+								throw e;
+							}
+						}
+				}
+			}
+
 			
 			// Retrieve academic session, banner term etc.
 			AcademicSessionInfo session = server.getAcademicSession();
@@ -1216,11 +1261,11 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 					sectioningRequest.getAction().addOptionBuilder().setKey("exception").setValue(gson.toJson(response));
 					XEInterface.Error error = response.getError();
 					if (error != null && error.message != null) {
-						throw new SectioningException(error.message);
+						throw new SectioningException(fixErrorMessage(error.message));
 					} else if (error != null && error.description != null) {
-						throw new SectioningException(error.description);
+						throw new SectioningException(fixErrorMessage(error.description));
 					} else if (error != null && error.errorMessage != null) {
-						throw new SectioningException(error.errorMessage);
+						throw new SectioningException(fixErrorMessage(error.errorMessage));
 					} else {
 						throw exception;
 					}
@@ -1243,9 +1288,9 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 				if (original != null && original.failureReasons != null) {
 					for (String m: original.failureReasons) {
 						if (reason == null)
-							reason = m;
+							reason = fixErrorMessage(m);
 						else
-							reason += "\n" + m;
+							reason += "\n" + fixErrorMessage(m);
 					}
 				}
 				throw new SectioningException(reason == null ? "Failed to check student registration status." : reason);
@@ -1260,16 +1305,22 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 				for (XEInterface.Registration reg: original.registrations) {
 					if (reg.isRegistered()) {
 						if (idsToDrop.contains(reg.courseReferenceNumber)) {
-							if (!reg.canDrop(true, actions))
-								throw new SectioningException("Section " + reg.courseReferenceNumber + " is not available for student scheduling.");
+							if (!reg.canDrop(true, actions)) {
+								SectioningException e = new SectioningException("Section " + reg.courseReferenceNumber + " is not available for student scheduling.");
+								e.addError(new ErrorMessage(reg.subject + " " + reg.courseNumber, reg.courseReferenceNumber, ErrorMessage.UniTimeCode.UT_DISABLED, "Section cannot be dropped."));
+								throw e;
+							}
 							req.drop(reg.courseReferenceNumber, actions);
 							changed = true;
 						} else {
 							req.keep(reg.courseReferenceNumber);
 						}
 					} else if (idsToAdd.remove(reg.courseReferenceNumber)) {
-						if (!reg.canAdd(true))
-							throw new SectioningException("Section " + reg.courseReferenceNumber + " is not available for student scheduling.");
+						if (!reg.canAdd(true)) {
+							SectioningException e = new SectioningException("Section " + reg.courseReferenceNumber + " is not available for student scheduling.");
+							e.addError(new ErrorMessage(reg.subject + " " + reg.courseNumber, reg.courseReferenceNumber, ErrorMessage.UniTimeCode.UT_DISABLED, "Section cannot be added."));
+							throw e;
+						}
 						req.add(reg.courseReferenceNumber, true);
 						changed = true;
 					}
@@ -1296,11 +1347,11 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 					sectioningRequest.getAction().addOptionBuilder().setKey("exception").setValue(gson.toJson(response));
 					XEInterface.Error error = response.getError();
 					if (error != null && error.message != null) {
-						throw new SectioningException(error.message);
+						throw new SectioningException(fixErrorMessage(error.message));
 					} else if (error != null && error.description != null) {
-						throw new SectioningException(error.description);
+						throw new SectioningException(fixErrorMessage(error.description));
 					} else if (error != null && error.errorMessage != null) {
-						throw new SectioningException(error.errorMessage);
+						throw new SectioningException(fixErrorMessage(error.errorMessage));
 					} else {
 						throw exception;
 					}
@@ -1322,9 +1373,9 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 				if (response != null && response.failureReasons != null) {
 					for (String m: response.failureReasons) {
 						if (reason == null)
-							reason = m;
+							reason = fixErrorMessage(m);
 						else
-							reason += "\n" + m;
+							reason += "\n" + fixErrorMessage(m);
 					}
 				}
 				throw new SectioningException(reason == null ? "Failed to enroll student." : reason);
@@ -1349,7 +1400,7 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 									reg.subject + " " + reg.courseNumber + " " + reg.courseReferenceNumber + ": " + e.message + " (" + e.messageType + ")"
 									).setLevel(OnlineSectioningLog.Message.Level.WARN);
 							if (exception != null)
-								exception.addError(new ErrorMessage(reg.subject + " " +reg.courseNumber, reg.courseReferenceNumber, e.messageType, e.message)); 
+								exception.addError(new ErrorMessage(reg.subject + " " +reg.courseNumber, reg.courseReferenceNumber, e.messageType, fixErrorMessage(e.message))); 
 						}
 					List<XSection> sections = sectioningRequest.getOffering().getSections(course.getCourseId(), id);
 					if (!sections.isEmpty() && "Registered".equals(reg.statusDescription)) {
@@ -1373,13 +1424,16 @@ public class XEStudentEnrollment implements StudentEnrollmentProvider {
 					else
 						sectioningRequest.getAction().addMessageBuilder().setText(reg.failure).setLevel(OnlineSectioningLog.Message.Level.WARN);
 					if (exception == null && ret.getSectionIds().isEmpty())
-						exception = new SectioningException(reg.failure);
+						exception = new SectioningException(fixErrorMessage(reg.failure));
 					if (exception != null)
-						exception.addError(new ErrorMessage(course.getCourseName(), reg.failedCRN, "", reg.failure));
+						exception.addError(new ErrorMessage(course.getCourseName(), reg.failedCRN, "UNKNOWN", fixErrorMessage(reg.failure)));
 				}
 			}
 			if (exception != null) throw exception;		
 			return (ret.getSectionIds().isEmpty() ? null : ret);
+		} catch (JsonParseException e) { 
+			sectioningRequest.getAction().addMessageBuilder().setText("Banner enrollment failed: " + e.getMessage()).setLevel(OnlineSectioningLog.Message.Level.INFO);
+			throw new SectioningException("Invalid response received from Banner, likely due to a timeout.");
 		} catch (SectioningException e) {
 			sectioningRequest.getAction().addMessageBuilder().setText("Banner enrollment failed: " + e.getMessage()).setLevel(OnlineSectioningLog.Message.Level.INFO);
 			throw e;

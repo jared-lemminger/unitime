@@ -422,7 +422,7 @@ public class InstructionalOffering extends BaseInstructionalOffering {
     	}
     	InstructionalOffering next = null;
 		SubjectArea area = getControllingCourseOffering().getSubjectArea();
-		Iterator i = null;
+		Iterator<CourseOffering> i = null;
 		try {
 		    i = area.getCourseOfferings().iterator();
 		}
@@ -431,8 +431,8 @@ public class InstructionalOffering extends BaseInstructionalOffering {
 		    i = area.getCourseOfferings().iterator();
 		}
 		for (;i.hasNext();) {
-			CourseOffering c = (CourseOffering)i.next();
-			if (!c.isIsControl().booleanValue()) continue;
+			CourseOffering c = i.next();
+			if (c == null || !c.isIsControl().booleanValue()) continue;
 			InstructionalOffering o = (InstructionalOffering)c.getInstructionalOffering();
     		if (!o.isNotOffered().equals(isNotOffered())) continue;
 			if (cmp.compare(this, o)>=0) continue;
@@ -450,7 +450,7 @@ public class InstructionalOffering extends BaseInstructionalOffering {
     	}
     	InstructionalOffering previous = null;
 		SubjectArea area = getControllingCourseOffering().getSubjectArea();
-		Iterator i = null;
+		Iterator<CourseOffering> i = null;
 		try {
 		    i = area.getCourseOfferings().iterator();
 		}
@@ -459,8 +459,8 @@ public class InstructionalOffering extends BaseInstructionalOffering {
 		    i = area.getCourseOfferings().iterator();
 		}
 		for (;i.hasNext();) {
-			CourseOffering c = (CourseOffering)i.next();
-			if (!c.isIsControl().booleanValue()) continue;
+			CourseOffering c = i.next();
+			if (c == null || !c.isIsControl().booleanValue()) continue;
 			InstructionalOffering o = (InstructionalOffering)c.getInstructionalOffering();
     		if (!o.isNotOffered().equals(isNotOffered())) continue;
 			if (cmp.compare(this, o)<=0) continue;
@@ -821,5 +821,28 @@ public class InstructionalOffering extends BaseInstructionalOffering {
 	@Transient
     public Boolean isReschedule() {
     	return getWaitListMode().isReschedule();
+    }
+
+	@Transient
+    public Integer getLimit() {
+		if (getInstrOfferingConfigs() == null || getInstrOfferingConfigs().isEmpty()) return 0;
+    	int ret = 0;
+    	for (InstrOfferingConfig config: getInstrOfferingConfigs()) {
+    		if (!config.isUnlimitedEnrollment())
+    			ret += config.getLimit();
+    	}
+    	return ret;
+    }
+
+	@Transient
+    public Integer getDemand() {
+		if (getCourseOfferings() == null || getCourseOfferings().isEmpty()) return 0;
+		int ret = 0;
+		for (CourseOffering co: getCourseOfferings()) {
+			ret += co.getDemand();
+			if (co.getDemandOffering() != null)
+				ret += co.getDemandOffering().getDemand();
+		}
+		return ret;
     }
 }
